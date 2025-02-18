@@ -83,15 +83,13 @@ const createWindow = () => {
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   app.commandLine.appendSwitch('disable-site-isolation-trials');
-  app.commandLine.appendSwitch('disable-features', 'IsolateOrigins,site-per-process');
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer,NetworkServiceInProcess,QuicForceEnabled,BackForwardCache,NetworkQualityEstimator');
   app.commandLine.appendSwitch('ignore-certificate-errors');
   app.commandLine.appendSwitch('enable-gpu-memory-buffer-compositor-resources');
   app.commandLine.appendSwitch('enable-hardware-overlays');
   app.commandLine.appendSwitch('enable-zero-copy');
   app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
-  app.commandLine.appendSwitch('force-gpu-mem-available-mb', '16384');
-  app.commandLine.appendSwitch('js-flags', '--max-old-space-size=16384');
+  app.commandLine.appendSwitch('force-gpu-mem-available-mb', '2048');
   app.commandLine.appendSwitch('enable-unsafe-webgpu');
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
   app.commandLine.appendSwitch('enable-oop-rasterization');
@@ -100,7 +98,7 @@ const createWindow = () => {
   app.commandLine.appendSwitch('enable-parallel-downloading');
   app.commandLine.appendSwitch('enable-tcp-fast-open');
   app.commandLine.appendSwitch('enable-websocket-multiplexing');
-  app.commandLine.appendSwitch('disk-cache-size', '1073741824');
+  app.commandLine.appendSwitch('disk-cache-size', '104857600');
   app.commandLine.appendSwitch('enable-gpu-shader-disk-cache');
   app.commandLine.appendSwitch('enable-gpu-shader-cache-for-drivers');
   app.commandLine.appendSwitch('enable-gpu-program-cache');
@@ -112,10 +110,6 @@ const createWindow = () => {
   app.commandLine.appendSwitch('disable-gpu-vsync');
   app.commandLine.appendSwitch('disable-software-rasterizer');
   app.commandLine.appendSwitch('max-active-webgl-contexts', '100');
-  app.commandLine.appendSwitch('enable-webgl-draft-extensions');
-  app.commandLine.appendSwitch('enable-webgl2-compute-context');
-  app.commandLine.appendSwitch('canvas-oop-rasterization');
-  app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
 
   const anubisView = new BrowserView({
     webPreferences: {
@@ -135,39 +129,11 @@ const createWindow = () => {
       images: true,
       textAreasAreResizable: false,
       defaultEncoding: 'UTF-8',
-      offscreen: false,
-      allowRunningInsecureContent: true,
-      experimentalFeatures: true,
-      additionalArguments: [
-        '--disable-web-security',
-        '--ignore-gpu-blacklist',
-        '--disable-gpu-process-crash-limit',
-        '--max-active-webgl-contexts=100',
-        '--disable-webgl-context-limit',
-        '--disable-site-isolation-trials',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--enable-webgl-draft-extensions',
-        '--enable-gpu-rasterization',
-        '--enable-oop-rasterization',
-        '--ignore-gpu-blocklist',
-        '--enable-unsafe-webgpu',
-        '--enable-webgl=1',
-        '--enable-webgl2-compute-context',
-        '--canvas-oop-rasterization',
-        '--enable-gpu-memory-buffer-video-frames'
-      ]
+      offscreen: false
     }
   });
 
   const session = anubisView.webContents.session;
-  session.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Access-Control-Allow-Origin': ['*']
-      }
-    });
-  });
 
   const cachePath = path.join(app.getPath('userData'), 'Cache');
   if (!fs.existsSync(cachePath)) {
@@ -877,13 +843,6 @@ const createWindow = () => {
       }, 1000);
     } catch (error) {
       console.error('Failed to recover from crash:', error);
-    }
-  });
-
-  process.on('child-process-gone', (event, details) => {
-    if (details.type === 'GPU') {
-      console.log('GPU process gone, reason:', details.reason);
-      app.commandLine.appendSwitch('force-gpu-mem-available-mb', '16384');
     }
   });
 
