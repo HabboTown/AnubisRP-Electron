@@ -56,14 +56,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeExternalTab: (tabId: number) => ipcRenderer.send('close-external-tab', tabId),
   switchToTab: (tabId: number | 'main') => ipcRenderer.send('switch-to-tab', tabId),
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
-  onCheckingForUpdate: (callback: () => void) => ipcRenderer.on('checking-for-update', callback),
-  onUpdateAvailable: (callback: (info: any) => void) => ipcRenderer.on('update-available', callback),
+  onCheckingForUpdate: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('checking-for-update', handler);
+    return () => ipcRenderer.removeListener('checking-for-update', handler);
+  },
+  onUpdateAvailable: (callback: (info: any) => void) => {
+    const handler = (_event: any, info: any) => callback(info);
+    ipcRenderer.on('update-available', handler);
+    return () => ipcRenderer.removeListener('update-available', handler);
+  },
   onUpdateError: (callback: (error: string) => void) => {
     const handler = (_event: any, error: string) => callback(error);
     ipcRenderer.on('update-error', handler);
     return () => ipcRenderer.removeListener('update-error', handler);
   },
-  onUpdateDownloaded: (callback: (info: any) => void) => ipcRenderer.on('update-downloaded', callback),
+  onUpdateProgress: (callback: (progressObj: any) => void) => {
+    const handler = (_event: any, progressObj: any) => callback(progressObj);
+    ipcRenderer.on('update-progress', handler);
+    return () => ipcRenderer.removeListener('update-progress', handler);
+  },
+  onUpdateDownloaded: (callback: (info: any) => void) => {
+    const handler = (_event: any, info: any) => callback(info);
+    ipcRenderer.on('update-downloaded', handler);
+    return () => ipcRenderer.removeListener('update-downloaded', handler);
+  },
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   installUpdate: () => ipcRenderer.send('install-update'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),

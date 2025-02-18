@@ -763,10 +763,10 @@
             button.innerHTML = `
                 <span class="button-content">
                     <span class="material-symbols-rounded">download</span>
-                    <span class="button-text">Download & Install</span>
+                    <span class="button-text">Downloading...</span>
                 </span>
             `;
-            isCheckingForUpdates = false;
+            isCheckingForUpdates = true;
         });
 
         window.electronAPI.onUpdateError((error) => {
@@ -782,6 +782,12 @@
             
             const button = document.querySelector('.check-updates-button');
             button.classList.remove('checking');
+            button.innerHTML = `
+                <span class="button-content">
+                    <span class="material-symbols-rounded update-icon">sync</span>
+                    <span class="button-text">Check for Updates</span>
+                </span>
+            `;
             isCheckingForUpdates = false;
         });
 

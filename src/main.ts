@@ -851,11 +851,17 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
     autoUpdater.allowDowngrade = false;
+    const log = require('electron-log');
+    autoUpdater.logger = log;
+    log.transports.file.level = 'debug';
 
     const checkForUpdates = async () => {
       try {
+        console.log('Checking for updates...');
+        mainWindow?.webContents.send('checking-for-update');
         const result = await autoUpdater.checkForUpdates();
         if (!result) {
+          console.log('No update check result');
           mainWindow?.webContents.send('update-error', 'No updates available');
         }
       } catch (error: any) {
@@ -864,10 +870,11 @@ const createWindow = () => {
       }
     };
 
-    setInterval(checkForUpdates, 30 * 60 * 1000);
-    void checkForUpdates();
+    setInterval(checkForUpdates, 30 * 60 * 1000); // Check every 30 minutes
+    setTimeout(checkForUpdates, 5000); // Initial check after 5 seconds
 
     autoUpdater.on('checking-for-update', () => {
+      console.log('Checking for update...');
       mainWindow?.webContents.send('checking-for-update');
     });
 
@@ -877,8 +884,18 @@ const createWindow = () => {
     });
 
     autoUpdater.on('update-not-available', (info: UpdateInfo) => {
-      console.log('Update not available:', info.version);
+      console.log('Update not available. Current version:', info.version);
       mainWindow?.webContents.send('update-error', 'No updates available');
+    });
+
+    autoUpdater.on('error', (err: Error) => {
+      console.error('Update error:', err);
+      mainWindow?.webContents.send('update-error', err.message);
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+      console.log('Download progress:', progressObj.percent);
+      mainWindow?.webContents.send('update-progress', progressObj);
     });
 
     autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
@@ -887,12 +904,8 @@ const createWindow = () => {
       mainWindow?.webContents.send('update-downloaded', info);
     });
 
-    autoUpdater.on('error', (err: Error) => {
-      console.error('Update error:', err);
-      mainWindow?.webContents.send('update-error', err.message);
-    });
-
     ipcMain.on('check-for-updates', () => {
+      console.log('Manual update check requested');
       void checkForUpdates();
     });
 
