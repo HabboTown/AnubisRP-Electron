@@ -936,16 +936,6 @@ const createWindow = () => {
       return;
     }
 
-    if (isCheckingForUpdates && manual) {
-      console.log('Forcing new update check...');
-      try {
-        autoUpdater.removeAllListeners();
-        setupUpdateListeners();
-      } catch (error) {
-        console.error('Error removing listeners:', error);
-      }
-    }
-    
     try {
       isCheckingForUpdates = true;
       isManualCheck = manual;
@@ -955,33 +945,19 @@ const createWindow = () => {
         provider: 'github' as const,
         owner: 'Hxmada',
         repo: 'AnubisRP-Electron',
-        token: process.env.GH_TOKEN,
         private: false
       };
-
-      console.log('Setting feed URL:', { ...feedURL, token: '***' });
       
-      try {
-        autoUpdater.setFeedURL(feedURL);
-        if (process.env.NODE_ENV !== 'production' && manual) {
-          console.log('Forcing update check in development mode');
-          autoUpdater.forceDevUpdateConfig = true;
-        }
-        await autoUpdater.checkForUpdates();
-      } catch (error: any) {
-        console.error('Update check failed:', error);
-        isCheckingForUpdates = false;
-        isManualCheck = false;
-        if (mainWindow) {
-          mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
-        }
+      autoUpdater.setFeedURL(feedURL);
+      if (process.env.NODE_ENV !== 'production' && manual) {
+        autoUpdater.forceDevUpdateConfig = true;
       }
+      await autoUpdater.checkForUpdates();
     } catch (error: any) {
-      console.error('Update check error:', error);
       isCheckingForUpdates = false;
       isManualCheck = false;
       if (mainWindow) {
-        mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
+        mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
       }
     }
   };
