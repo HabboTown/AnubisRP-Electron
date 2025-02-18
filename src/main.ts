@@ -42,6 +42,17 @@ const saveSettings = () => {
 loadSettings();
 
 const createWindow = () => {
+  const systemInfo = {
+    totalMemory: process.getSystemMemoryInfo().total,
+    cpuCount: require('os').cpus().length,
+    isHighEnd: false
+  };
+  
+  systemInfo.isHighEnd = systemInfo.totalMemory > 8 * 1024 * 1024 && systemInfo.cpuCount >= 4;
+  
+  const gpuMemory = systemInfo.isHighEnd ? 4096 : 2048;
+  const heapSize = systemInfo.isHighEnd ? 8192 : 4096;
+  
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
@@ -52,7 +63,7 @@ const createWindow = () => {
       webSecurity: true,
       preload: path.join(__dirname, 'preload.js'),
       additionalArguments: [
-        '--js-flags="--max-old-space-size=8192"',
+        `--js-flags="--max-old-space-size=${heapSize}"`,
         '--enable-gpu-rasterization',
         '--enable-zero-copy',
         '--ignore-gpu-blacklist',
@@ -65,7 +76,10 @@ const createWindow = () => {
         '--no-sandbox',
         '--disable-features=OutOfBlinkCors',
         '--disable-site-isolation-trials',
-        '--autoplay-policy=no-user-gesture-required'
+        '--autoplay-policy=no-user-gesture-required',
+        '--disable-gpu-process-crash-limit',
+        '--enable-webgl-draft-extensions',
+        '--enable-webgl-image-chromium'
       ]
     },
     frame: false,
@@ -82,34 +96,45 @@ const createWindow = () => {
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
-  app.commandLine.appendSwitch('disable-site-isolation-trials');
-  app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer,NetworkServiceInProcess,QuicForceEnabled,BackForwardCache,NetworkQualityEstimator');
-  app.commandLine.appendSwitch('ignore-certificate-errors');
   app.commandLine.appendSwitch('enable-gpu-memory-buffer-compositor-resources');
   app.commandLine.appendSwitch('enable-hardware-overlays');
   app.commandLine.appendSwitch('enable-zero-copy');
   app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
-  app.commandLine.appendSwitch('force-gpu-mem-available-mb', '2048');
-  app.commandLine.appendSwitch('enable-unsafe-webgpu');
+  app.commandLine.appendSwitch('force-gpu-mem-available-mb', gpuMemory.toString());
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
+  app.commandLine.appendSwitch('enable-gpu-rasterization');
   app.commandLine.appendSwitch('enable-oop-rasterization');
-  app.commandLine.appendSwitch('enable-raw-draw');
-  app.commandLine.appendSwitch('enable-quic');
-  app.commandLine.appendSwitch('enable-parallel-downloading');
-  app.commandLine.appendSwitch('enable-tcp-fast-open');
-  app.commandLine.appendSwitch('enable-websocket-multiplexing');
-  app.commandLine.appendSwitch('disk-cache-size', '104857600');
-  app.commandLine.appendSwitch('enable-gpu-shader-disk-cache');
-  app.commandLine.appendSwitch('enable-gpu-shader-cache-for-drivers');
-  app.commandLine.appendSwitch('enable-gpu-program-cache');
-  app.commandLine.appendSwitch('use-angle', 'gl');
-  app.commandLine.appendSwitch('enable-accelerated-video-decode');
-  app.commandLine.appendSwitch('enable-accelerated-mjpeg-decode');
-  app.commandLine.appendSwitch('enable-accelerated-video');
-  app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
   app.commandLine.appendSwitch('disable-gpu-vsync');
-  app.commandLine.appendSwitch('disable-software-rasterizer');
-  app.commandLine.appendSwitch('max-active-webgl-contexts', '100');
+  app.commandLine.appendSwitch('enable-webgl');
+  app.commandLine.appendSwitch('enable-webgl2');
+  app.commandLine.appendSwitch('disable-webgl-image-chromium');
+  app.commandLine.appendSwitch('disable-webgl-lose-context-on-memory-pressure');
+  app.commandLine.appendSwitch('disable-webgl-lose-context-on-gpu-reset');
+  app.commandLine.appendSwitch('gpu-no-context-lost');
+  app.commandLine.appendSwitch('disable-gl-drawing-for-tests', 'false');
+  app.commandLine.appendSwitch('enable-gpu-command-logging');
+  app.commandLine.appendSwitch('enable-gpu-memory-tracking');
+  app.commandLine.appendSwitch('force-gpu-mem-pressure-simulation', 'false');
+
+  if (systemInfo.isHighEnd) {
+    app.commandLine.appendSwitch('enable-gpu-program-cache');
+    app.commandLine.appendSwitch('enable-gpu-shader-disk-cache');
+    app.commandLine.appendSwitch('enable-gpu-shader-cache-for-drivers');
+    app.commandLine.appendSwitch('enable-accelerated-video-decode');
+    app.commandLine.appendSwitch('enable-accelerated-mjpeg-decode');
+    app.commandLine.appendSwitch('enable-accelerated-video');
+    app.commandLine.appendSwitch('max-active-webgl-contexts', '1000');
+    app.commandLine.appendSwitch('enable-quic');
+    app.commandLine.appendSwitch('enable-parallel-downloading');
+    app.commandLine.appendSwitch('disk-cache-size', '524288000');
+  } else {
+    app.commandLine.appendSwitch('enable-low-end-device-mode');
+    app.commandLine.appendSwitch('renderer-process-limit', '4');
+    app.commandLine.appendSwitch('process-per-site');
+    app.commandLine.appendSwitch('enable-low-res-tiling');
+    app.commandLine.appendSwitch('max-active-webgl-contexts', '500');
+    app.commandLine.appendSwitch('disk-cache-size', '262144000');
+  }
 
   const anubisView = new BrowserView({
     webPreferences: {
@@ -189,12 +214,41 @@ const createWindow = () => {
   const optimizeMemory = () => {
     if (anubisView && anubisView.webContents) {
       if (!isLoading) {
-        anubisView.webContents.send('optimize-memory');
+        try {
+          // Force garbage collection
+          if (global.gc) global.gc();
+          
+          // Clear unused WebGL resources
+          anubisView.webContents.send('optimize-memory');
+          
+          // Clear shader cache if it gets too large
+          session.clearStorageData({
+            storages: ['shadercache'],
+            quotas: ['temporary']
+          }).catch(console.error);
+          
+          // Reload WebGL context if needed
+          anubisView.webContents.executeJavaScript(`
+            try {
+              const canvas = document.querySelector('canvas');
+              if (canvas) {
+                const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+                if (gl && gl.getError() !== gl.NO_ERROR) {
+                  canvas.getContext('webgl', { powerPreference: 'high-performance', preserveDrawingBuffer: true });
+                }
+              }
+            } catch (e) {
+              console.error('WebGL context refresh failed:', e);
+            }
+          `).catch(console.error);
+        } catch (error) {
+          console.error('Memory optimization failed:', error);
+        }
       }
     }
   };
 
-  setInterval(optimizeMemory, 60000);
+  setInterval(optimizeMemory, 30000);
   let isLoading = false;
   
   anubisView.webContents.on('did-start-loading', () => {
@@ -282,19 +336,19 @@ const createWindow = () => {
 
   const memoryManager = setInterval(() => {
     const memInfo = process.getSystemMemoryInfo();
-    if (memInfo.free < 512 * 1024) {
+    if (memInfo.free < 256 * 1024) {
       if (!isLoading) {
-        console.log('Critical memory pressure, performing minimal cleanup...');
+        console.log('Critical memory pressure, performing cleanup...');
         if (global.gc) {
           global.gc();
         }
         session.clearStorageData({
-          storages: ['cachestorage'],
+          storages: ['cachestorage', 'shadercache'],
           quotas: ['temporary']
         });
       }
     }
-  }, 30000);
+  }, 15000);
 
   mainWindow.on('minimize', () => {
     if (global.gc) {
