@@ -32,16 +32,13 @@
   "build": {
     "appId": "com.anubisrp.app",
     "productName": "AnubisRP",
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "HabboTown",
-        "repo": "AnubisRP-Electron",
-        "private": false,
-        "releaseType": "release",
-        "channel": "latest"
-      }
-    ],
+    "publish": {
+      "provider": "github",
+      "owner": "${env.GITHUB_USERNAME}",
+      "repo": "AnubisRP-Electron",
+      "private": false,
+      "releaseType": "release"
+    },
     "directories": {
       "output": "build",
       "buildResources": "images"

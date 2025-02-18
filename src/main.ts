@@ -909,6 +909,13 @@ const createWindow = () => {
     autoUpdater.logger = log;
     log.transports.file.level = 'debug';
     
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: process.env.GITHUB_USERNAME || 'Hxmada',
+      repo: 'AnubisRP-Electron',
+      token: process.env.GH_TOKEN
+    });
+    
     autoUpdater.on('checking-for-update', () => {
       isCheckingForUpdates = true;
       if (mainWindow) {
