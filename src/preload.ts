@@ -56,22 +56,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeExternalTab: (tabId: number) => ipcRenderer.send('close-external-tab', tabId),
   switchToTab: (tabId: number | 'main') => ipcRenderer.send('switch-to-tab', tabId),
   checkForUpdates: () => ipcRenderer.send('check-for-updates'),
-  installUpdate: () => ipcRenderer.send('install-update'),
-  onUpdateAvailable: (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on('update-available', handler);
-    return () => ipcRenderer.removeListener('update-available', handler);
-  },
-  onUpdateDownloaded: (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on('update-downloaded', handler);
-    return () => ipcRenderer.removeListener('update-downloaded', handler);
-  },
+  onCheckingForUpdate: (callback: () => void) => ipcRenderer.on('checking-for-update', callback),
+  onUpdateAvailable: (callback: (info: any) => void) => ipcRenderer.on('update-available', callback),
   onUpdateError: (callback: (error: string) => void) => {
     const handler = (_event: any, error: string) => callback(error);
     ipcRenderer.on('update-error', handler);
     return () => ipcRenderer.removeListener('update-error', handler);
   },
+  onUpdateDownloaded: (callback: (info: any) => void) => ipcRenderer.on('update-downloaded', callback),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  installUpdate: () => ipcRenderer.send('install-update'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
   closeSettings: () => ipcRenderer.send('close-settings'),
 }); 

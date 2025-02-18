@@ -99,24 +99,33 @@
             overflow-y: auto;
             flex: 1;
             scrollbar-width: thin;
-            scrollbar-color: var(--accent-color) transparent;
+            scrollbar-color: var(--title-text-color) transparent;
         }
 
         .settings-container::-webkit-scrollbar {
-            width: 4px;
+            width: 8px;
         }
 
         .settings-container::-webkit-scrollbar-track {
             background: transparent;
+            border-radius: 4px;
         }
 
         .settings-container::-webkit-scrollbar-thumb {
-            background-color: var(--border-color);
-            border-radius: 2px;
+            background-color: var(--title-text-color);
+            border-radius: 4px;
+            border: 2px solid var(--background-color);
+            opacity: 0.5;
         }
 
         .settings-container::-webkit-scrollbar-thumb:hover {
-            background-color: var(--hover-color);
+            background-color: var(--title-text-color);
+            opacity: 0.8;
+        }
+
+        .settings-container::-webkit-scrollbar-thumb:active {
+            background-color: var(--title-text-color);
+            opacity: 1;
         }
 
         .settings-section {
@@ -378,6 +387,101 @@
             border-radius: 3px;
             border: 1px solid var(--border-color);
         }
+
+        .version-item {
+            margin-bottom: 12px !important;
+        }
+
+        .version-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .version-number {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-color);
+            opacity: 0.9;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .version-status {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+
+        .version-status.latest {
+            background: #4CAF50;
+            color: white;
+            opacity: 1;
+        }
+
+        .version-status.checking {
+            background: var(--title-bar-color);
+            color: var(--title-text-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        .check-updates-button {
+            width: 100%;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .check-updates-button:hover {
+            background: var(--input-bg);
+            border-color: var(--text-color);
+        }
+
+        .check-updates-button:active {
+            transform: scale(0.98);
+        }
+
+        .button-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .update-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .check-updates-button.checking .update-icon {
+            animation: spin 1s infinite linear;
+        }
+
+        .check-updates-button.checking {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,300,0,0" rel="stylesheet" />
 </head>
@@ -437,6 +541,23 @@
             </div>
         </div>
 
+        <div class="settings-section">
+            <h2>About</h2>
+            <div class="setting-item version-item">
+                <span class="setting-label">Version</span>
+                <div class="version-info">
+                    <span class="version-number">v1.2.0</span>
+                    <span class="version-status">Checking...</span>
+                </div>
+            </div>
+            <button class="check-updates-button" onclick="checkForUpdates()">
+                <span class="button-content">
+                    <span class="material-symbols-rounded update-icon">sync</span>
+                    <span class="button-text">Check for Updates</span>
+                </span>
+            </button>
+        </div>
+
         <button class="save-button" onclick="saveSettings()">No Changes</button>
     </div>
 
@@ -445,6 +566,7 @@
         let hasUnsavedChanges = false;
         const DEFAULT_DARK_COLOR = '#1a1a1a';
         const DEFAULT_LIGHT_COLOR = '#f8f8f8';
+        let isCheckingForUpdates = false;
 
         function getDefaultColor() {
             const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -606,6 +728,85 @@
                 if (!hasUnsavedChanges) saveButton.textContent = 'No Changes';
             }, 2000);
         }
+
+        function checkForUpdates() {
+            if (isCheckingForUpdates) return;
+            
+            const button = document.querySelector('.check-updates-button');
+            const status = document.querySelector('.version-status');
+            
+            button.classList.add('checking');
+            status.textContent = 'Checking...';
+            status.className = 'version-status checking';
+            isCheckingForUpdates = true;
+
+            window.electronAPI.checkForUpdates();
+        }
+
+        window.electronAPI.onCheckingForUpdate(() => {
+            const status = document.querySelector('.version-status');
+            status.textContent = 'Checking...';
+            status.className = 'version-status checking';
+            
+            const button = document.querySelector('.check-updates-button');
+            button.classList.add('checking');
+            isCheckingForUpdates = true;
+        });
+
+        window.electronAPI.onUpdateAvailable((info) => {
+            const status = document.querySelector('.version-status');
+            status.textContent = `Update Available (${info.version})`;
+            status.className = 'version-status';
+            
+            const button = document.querySelector('.check-updates-button');
+            button.classList.remove('checking');
+            button.innerHTML = `
+                <span class="button-content">
+                    <span class="material-symbols-rounded">download</span>
+                    <span class="button-text">Download & Install</span>
+                </span>
+            `;
+            isCheckingForUpdates = false;
+        });
+
+        window.electronAPI.onUpdateError((error) => {
+            const status = document.querySelector('.version-status');
+            if (error === 'No updates available') {
+                status.textContent = 'Latest';
+                status.className = 'version-status latest';
+            } else {
+                status.textContent = 'Check Failed';
+                status.className = 'version-status';
+                console.error('Update check failed:', error);
+            }
+            
+            const button = document.querySelector('.check-updates-button');
+            button.classList.remove('checking');
+            isCheckingForUpdates = false;
+        });
+
+        window.electronAPI.onUpdateDownloaded((info) => {
+            const status = document.querySelector('.version-status');
+            status.textContent = 'Ready to Install';
+            status.className = 'version-status latest';
+            
+            const button = document.querySelector('.check-updates-button');
+            button.classList.remove('checking');
+            button.innerHTML = `
+                <span class="button-content">
+                    <span class="material-symbols-rounded">system_update</span>
+                    <span class="button-text">Restart & Install</span>
+                </span>
+            `;
+            button.onclick = () => window.electronAPI.installUpdate();
+            isCheckingForUpdates = false;
+        });
+
+        window.electronAPI.getAppVersion().then(version => {
+            const versionNumber = document.querySelector('.version-number');
+            versionNumber.textContent = `v${version}`;
+            window.electronAPI.checkForUpdates();
+        });
 
         document.querySelector('.close-button').addEventListener('click', () => {
             window.electronAPI.closeSettings();

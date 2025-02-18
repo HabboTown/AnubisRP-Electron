@@ -887,33 +887,45 @@ const createWindow = () => {
     }
   });
 
+  let updateDownloaded = false;
+
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
     autoUpdater.allowDowngrade = false;
 
     const checkForUpdates = async () => {
       try {
-        await autoUpdater.checkForUpdates();
-      } catch (error) {
+        const result = await autoUpdater.checkForUpdates();
+        if (!result) {
+          mainWindow?.webContents.send('update-error', 'No updates available');
+        }
+      } catch (error: any) {
         console.error('Failed to check for updates:', error);
+        mainWindow?.webContents.send('update-error', error.message || 'Unknown error occurred');
       }
     };
 
     setInterval(checkForUpdates, 30 * 60 * 1000);
-    
     void checkForUpdates();
 
-    let updateDownloaded = false;
+    autoUpdater.on('checking-for-update', () => {
+      mainWindow?.webContents.send('checking-for-update');
+    });
 
     autoUpdater.on('update-available', (info: UpdateInfo) => {
       console.log('Update available:', info.version);
-      mainWindow?.webContents.send('update-available');
+      mainWindow?.webContents.send('update-available', info);
+    });
+
+    autoUpdater.on('update-not-available', (info: UpdateInfo) => {
+      console.log('Update not available:', info.version);
+      mainWindow?.webContents.send('update-error', 'No updates available');
     });
 
     autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
       console.log('Update downloaded:', info.version);
       updateDownloaded = true;
-      mainWindow?.webContents.send('update-downloaded');
+      mainWindow?.webContents.send('update-downloaded', info);
     });
 
     autoUpdater.on('error', (err: Error) => {
@@ -930,11 +942,15 @@ const createWindow = () => {
         autoUpdater.quitAndInstall();
       }
     });
-
-    ipcMain.handle('get-update-status', () => {
-      return updateDownloaded;
-    });
   }
+
+  ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
+  });
+
+  ipcMain.handle('get-update-status', () => {
+    return process.env.NODE_ENV === 'production' ? updateDownloaded : false;
+  });
 };
 
 app.whenReady().then(() => {
