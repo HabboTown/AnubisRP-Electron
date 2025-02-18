@@ -8,6 +8,9 @@
     "build": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win",
     "build:x64": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --x64",
     "build:ia32": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --ia32",
+    "build:mac": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --mac",
+    "build:linux": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --linux",
+    "build:all": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build -mwl",
     "dev": "tsc-watch --onSuccess \"electron .\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
