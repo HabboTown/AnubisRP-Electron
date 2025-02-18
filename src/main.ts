@@ -111,15 +111,11 @@ const createWindow = () => {
   app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
   app.commandLine.appendSwitch('disable-gpu-vsync');
   app.commandLine.appendSwitch('disable-software-rasterizer');
-  app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
-  app.commandLine.appendSwitch('enable-gpu-service-logging');
+  app.commandLine.appendSwitch('max-active-webgl-contexts', '100');
   app.commandLine.appendSwitch('enable-webgl-draft-extensions');
-  app.commandLine.appendSwitch('enable-webgl-image-chromium');
-  app.commandLine.appendSwitch('disable-webgl-image-chromium-sync-extension');
-  app.commandLine.appendSwitch('disable-webgl-lose-context-on-memory-pressure');
-  app.commandLine.appendSwitch('disable-webgl-lose-context-on-out-of-memory');
-  app.commandLine.appendSwitch('disable-webgl-context-loss-on-memory-pressure');
-  app.commandLine.appendSwitch('disable-webgl-context-loss-on-gpu-reset');
+  app.commandLine.appendSwitch('enable-webgl2-compute-context');
+  app.commandLine.appendSwitch('canvas-oop-rasterization');
+  app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
 
   const anubisView = new BrowserView({
     webPreferences: {
@@ -146,10 +142,19 @@ const createWindow = () => {
         '--disable-web-security',
         '--ignore-gpu-blacklist',
         '--disable-gpu-process-crash-limit',
-        '--max-active-webgl-contexts=32',
+        '--max-active-webgl-contexts=100',
         '--disable-webgl-context-limit',
         '--disable-site-isolation-trials',
-        '--disable-features=IsolateOrigins,site-per-process'
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--enable-webgl-draft-extensions',
+        '--enable-gpu-rasterization',
+        '--enable-oop-rasterization',
+        '--ignore-gpu-blocklist',
+        '--enable-unsafe-webgpu',
+        '--enable-webgl=1',
+        '--enable-webgl2-compute-context',
+        '--canvas-oop-rasterization',
+        '--enable-gpu-memory-buffer-video-frames'
       ]
     }
   });
