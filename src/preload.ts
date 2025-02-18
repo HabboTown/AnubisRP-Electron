@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdateColors: (callback: (color: string) => void) => ipcRenderer.on('update-colors', (_event, color) => callback(color)),
   onExternalLinkData: (callback: (data: { url: string }) => void) => { ipcRenderer.on('external-link-data', (_event, data) => callback(data)); },
   openExternalLink: (url: string) => { ipcRenderer.send('open-external-link', url); },
+  toggleFullscreen: (isFullscreen: boolean) => ipcRenderer.send('toggle-fullscreen', isFullscreen),
+  onFullscreenChanged: (callback: (isFullscreen: boolean) => void) => ipcRenderer.on('fullscreen-changed', (_event, isFullscreen) => callback(isFullscreen)),
   onExternalTabCreated: (callback: (data: { id: number, title: string }) => void) => { ipcRenderer.on('external-tab-created', (_event, data) => callback(data)); },
   onExternalTabUpdated: (callback: (data: { id: number, title: string }) => void) => { ipcRenderer.on('external-tab-updated', (_event, data) => callback(data)); },
   onExternalTabClosed: (callback: (tabId: number) => void) => { ipcRenderer.on('external-tab-closed', (_event, tabId) => callback(tabId)); },

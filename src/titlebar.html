@@ -10,6 +10,7 @@
             --button-hover: rgba(212, 175, 55, 0.15);
             --tooltip-bg: rgba(0, 0, 0, 0.85);
             --loading-color: rgb(0, 0, 0);
+            --titlebar-transition: transform 0.3s ease, opacity 0.3s ease;
         }
 
         @media (prefers-color-scheme: light) {
@@ -34,6 +35,27 @@
             will-change: transform;
             transform: translateZ(0);
             backface-visibility: hidden;
+        }
+
+        body.fullscreen .titlebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            background: var(--background-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        body.fullscreen .browserView {
+            margin-top: 32px !important;
+            height: calc(100vh - 32px) !important;
+        }
+
+        body.fullscreen::before {
+            display: none;
         }
 
         .titlebar {
@@ -141,7 +163,8 @@
         .control-button.refresh,
         .control-button.clear,
         .control-button.cookies,
-        .control-button.settings {
+        .control-button.settings,
+        .control-button.fullscreen {
             color: var(--text-color);
         }
 
@@ -354,6 +377,9 @@
 <body>
     <div class="titlebar">
         <div class="utility-controls">
+            <button class="control-button settings" title="Settings" onclick="window.electronAPI.openSettings()">
+                <span class="material-symbols-rounded">settings</span>
+            </button>
             <button class="control-button refresh" title="Refresh" onclick="window.electronAPI.refreshPage()">
                 <span class="material-symbols-rounded">refresh</span>
             </button>
@@ -363,9 +389,6 @@
             <button class="control-button cookies" title="Clear Cookies" onclick="window.electronAPI.clearCookies()">
                 <span class="material-symbols-rounded">cookie</span>
             </button>
-            <button class="control-button settings" title="Settings" onclick="window.electronAPI.openSettings()">
-                <span class="material-symbols-rounded">settings</span>
-            </button>
         </div>
         <div class="title">
             <img src="../images/Animatedprofile.gif" class="title-icon" onclick="handleTitleClick()" style="-webkit-app-region: no-drag;cursor: pointer;">
@@ -373,6 +396,9 @@
             <div class="tabs-container" id="tabsContainer"></div>
         </div>
         <div class="window-controls">
+            <button class="control-button fullscreen" title="Toggle Fullscreen" onclick="toggleFullscreen()">
+                <span class="material-symbols-rounded" id="fullscreen-icon">fullscreen</span>
+            </button>
             <button class="window-control-button" title="Minimize" onclick="window.electronAPI.minimizeWindow()">
                 <span class="material-symbols-rounded">remove</span>
             </button>
@@ -533,6 +559,37 @@
 
             window.electronAPI.switchToTab(tabId);
         }
+
+        let isFullscreen = false;
+
+        function toggleFullscreen() {
+            isFullscreen = !isFullscreen;
+            document.body.classList.toggle('fullscreen', isFullscreen);
+            const icon = document.getElementById('fullscreen-icon');
+            icon.textContent = isFullscreen ? 'fullscreen_exit' : 'fullscreen';
+            window.electronAPI.toggleFullscreen(isFullscreen);
+        }
+
+        function exitFullscreen() {
+            if (isFullscreen) {
+                toggleFullscreen();
+            }
+        }
+
+        window.electronAPI.onFullscreenChanged((fullscreen) => {
+            if (isFullscreen !== fullscreen) {
+                isFullscreen = fullscreen;
+                document.body.classList.toggle('fullscreen', isFullscreen);
+                const icon = document.getElementById('fullscreen-icon');
+                icon.textContent = isFullscreen ? 'fullscreen_exit' : 'fullscreen';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                exitFullscreen();
+            }
+        });
     </script>
 </body>
 </html> 

@@ -292,11 +292,19 @@ const createWindow = () => {
     const display = screen.getDisplayMatching(bounds);
     const workArea = display.workArea;
     const isMaximized = mainWindow.isMaximized();
+    const isFullScreen = mainWindow.isFullScreen();
 
     const currentView = activeExternalTab ? externalTabs.get(activeExternalTab) : anubisView;
     if (!currentView) return;
 
-    if (isMaximized) {
+    if (isFullScreen) {
+      currentView.setBounds({
+        x: 0,
+        y: 32,
+        width: bounds.width,
+        height: bounds.height - 32
+      });
+    } else if (isMaximized) {
       const availableWidth = workArea.width;
       const availableHeight = workArea.height;
       
@@ -387,6 +395,30 @@ const createWindow = () => {
 
   ipcMain.on('close-window', () => {
     mainWindow?.close();
+  });
+
+  ipcMain.on('toggle-fullscreen', (_event, isFullscreen) => {
+    if (!mainWindow) return;
+    
+    if (isFullscreen) {
+      mainWindow.setFullScreen(true);
+      mainWindow.setAutoHideMenuBar(true);
+      
+      const currentView = activeExternalTab ? externalTabs.get(activeExternalTab) : anubisView;
+      if (currentView) {
+        const bounds = mainWindow.getBounds();
+        currentView.setBounds({
+          x: 0,
+          y: 32,
+          width: bounds.width,
+          height: bounds.height - 32
+        });
+      }
+    } else {
+      mainWindow.setFullScreen(false);
+      mainWindow.setAutoHideMenuBar(false);
+      updateViewBounds();
+    }
   });
 
   ipcMain.on('refresh-page', () => {
@@ -722,6 +754,23 @@ const createWindow = () => {
       console.error('fwiled to open URL:', error);
     });
   };
+
+  mainWindow.on('enter-full-screen', () => {
+    mainWindow?.webContents.send('fullscreen-changed', true);
+  });
+
+  mainWindow.on('leave-full-screen', () => {
+    mainWindow?.webContents.send('fullscreen-changed', false);
+  });
+
+  globalShortcut.register('Escape', () => {
+    if (mainWindow?.isFullScreen()) {
+      mainWindow.setFullScreen(false);
+      mainWindow.setAutoHideMenuBar(false);
+      updateViewBounds();
+      mainWindow.webContents.send('fullscreen-changed', false);
+    }
+  });
 };
 
 app.whenReady().then(() => {
