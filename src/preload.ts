@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearCache: () => ipcRenderer.send('clear-cache'),
   clearCookies: () => ipcRenderer.send('clear-cookies'),
   openSettings: () => ipcRenderer.send('open-settings'),
+  closeSettings: () => ipcRenderer.send('close-settings'),
   goBack: () => ipcRenderer.send('go-back'),
   onLoadingProgress: (callback: (progress: number) => void) => {
     const handler = (_event: any, progress: number) => callback(progress);
@@ -89,7 +90,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   installUpdate: () => ipcRenderer.send('install-update'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
-  closeSettings: () => ipcRenderer.send('close-settings'),
   removeListener: (channel: string, listener: (...args: any[]) => void) => {
     ipcRenderer.removeListener(channel, listener);
   }

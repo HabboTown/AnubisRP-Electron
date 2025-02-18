@@ -740,10 +740,8 @@
             status.className = 'version-status checking';
             isCheckingForUpdates = true;
 
-            const onNotAvailable = () => {
+            const resetUpdateCheck = () => {
                 isCheckingForUpdates = false;
-                status.textContent = 'Latest';
-                status.className = 'version-status latest';
                 button.classList.remove('checking');
                 button.innerHTML = `
                     <span class="button-content">
@@ -751,6 +749,13 @@
                         <span class="button-text">Check for Updates</span>
                     </span>
                 `;
+            };
+
+            const onNotAvailable = () => {
+                isCheckingForUpdates = false;
+                status.textContent = 'Latest';
+                status.className = 'version-status latest';
+                resetUpdateCheck();
                 window.electronAPI.removeListener('update-not-available', onNotAvailable);
                 window.electronAPI.removeListener('update-available', onAvailable);
                 window.electronAPI.removeListener('update-error', onError);
@@ -776,13 +781,7 @@
                 isCheckingForUpdates = false;
                 status.textContent = 'Check Failed';
                 status.className = 'version-status';
-                button.classList.remove('checking');
-                button.innerHTML = `
-                    <span class="button-content">
-                        <span class="material-symbols-rounded update-icon">sync</span>
-                        <span class="button-text">Check for Updates</span>
-                    </span>
-                `;
+                resetUpdateCheck();
                 console.error('Update check error:', error);
                 window.electronAPI.removeListener('update-not-available', onNotAvailable);
                 window.electronAPI.removeListener('update-available', onAvailable);

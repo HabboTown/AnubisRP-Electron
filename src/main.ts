@@ -875,6 +875,7 @@ const createWindow = () => {
     if (!mainWindow) return;
     if (isCheckingForUpdates) {
       console.log('Update check already in progress, skipping');
+      mainWindow.webContents.send('update-error', 'Update check already in progress');
       return;
     }
     
@@ -893,8 +894,6 @@ const createWindow = () => {
         return;
       }
 
-      autoUpdater.autoDownload = true;
-      autoUpdater.allowDowngrade = false;
       const feedURL: { provider: 'github'; owner: string; repo: string; token?: string } = {
         provider: 'github',
         owner: process.env.GITHUB_USERNAME || 'Hxmada',
@@ -905,22 +904,24 @@ const createWindow = () => {
         feedURL.token = process.env.GH_TOKEN;
       }
 
-      console.log('Setting feed URL:', { ...feedURL, token: feedURL['token'] ? '***' : 'not set' });
+      console.log('Setting feed URL:', { ...feedURL, token: feedURL.token ? '***' : 'not set' });
       
       try {
         autoUpdater.setFeedURL(feedURL);
         await autoUpdater.checkForUpdates();
       } catch (error: any) {
         console.error('Update check failed:', error);
-        throw new Error(error.message || 'Failed to check for updates');
+        isCheckingForUpdates = false;
+        if (mainWindow) {
+          mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
+        }
       }
     } catch (error: any) {
       console.error('Update check error:', error);
+      isCheckingForUpdates = false;
       if (mainWindow) {
         mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
       }
-    } finally {
-      isCheckingForUpdates = false;
     }
   };
 
