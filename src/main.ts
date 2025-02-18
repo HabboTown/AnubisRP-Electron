@@ -68,15 +68,17 @@ const createWindow = () => {
         '--autoplay-policy=no-user-gesture-required'
       ]
     },
-    frame: false,
-    titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 10, y: 16 },
+    frame: process.platform !== 'darwin',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    trafficLightPosition: process.platform === 'darwin' ? { x: 20, y: 16 } : { x: 10, y: 16 },
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
     show: false,
     icon: process.platform === 'darwin' ? path.join(__dirname, '../images/icon.icns'): process.platform === 'win32' ? path.join(__dirname, '../images/icon.ico') : path.join(__dirname, '../images/icon.png'),
     minWidth: 800,
     minHeight: 600,
-    autoHideMenuBar: true
+    autoHideMenuBar: true,
+    vibrancy: process.platform === 'darwin' ? 'under-window' : undefined,
+    visualEffectState: process.platform === 'darwin' ? 'active' : undefined
   });
 
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
@@ -319,6 +321,7 @@ const createWindow = () => {
     const workArea = display.workArea;
     const isMaximized = mainWindow.isMaximized();
     const isFullScreen = mainWindow.isFullScreen();
+    const titleBarHeight = process.platform === 'darwin' ? 28 : 32;
 
     const currentView = activeExternalTab ? externalTabs.get(activeExternalTab) : anubisView;
     if (!currentView) return;
@@ -326,9 +329,9 @@ const createWindow = () => {
     if (isFullScreen) {
       currentView.setBounds({
         x: 0,
-        y: 32,
+        y: process.platform === 'darwin' ? 0 : titleBarHeight,
         width: bounds.width,
-        height: bounds.height - 32
+        height: process.platform === 'darwin' ? bounds.height : bounds.height - titleBarHeight
       });
     } else if (isMaximized) {
       const availableWidth = workArea.width;
@@ -343,17 +346,17 @@ const createWindow = () => {
 
       currentView.setBounds({
         x: 0,
-        y: 32,
+        y: process.platform === 'darwin' ? titleBarHeight : titleBarHeight,
         width: availableWidth,
-        height: availableHeight - 32
+        height: availableHeight - titleBarHeight
       });
     } else {
       const windowBounds = mainWindow.getBounds();
       currentView.setBounds({
         x: 0,
-        y: 32,
+        y: process.platform === 'darwin' ? titleBarHeight : titleBarHeight,
         width: windowBounds.width,
-        height: windowBounds.height - 32
+        height: windowBounds.height - titleBarHeight
       });
     }
   };
@@ -533,7 +536,8 @@ const createWindow = () => {
       height: 500,
       parent: mainWindow!,
       modal: false,
-      frame: false,
+      frame: process.platform !== 'darwin',
+      titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
       resizable: false,
       maximizable: false,
       minimizable: false,
@@ -542,7 +546,9 @@ const createWindow = () => {
         contextIsolation: true,
         preload: path.join(__dirname, 'preload.js')
       },
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f8f8f8'
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f8f8f8',
+      vibrancy: process.platform === 'darwin' ? 'under-window' : undefined,
+      visualEffectState: process.platform === 'darwin' ? 'active' : undefined
     });
 
     settingsWindow.setMaxListeners(20);
