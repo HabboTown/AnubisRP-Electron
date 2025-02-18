@@ -107,7 +107,7 @@
             height: 32px;
         }
 
-        .control-button {
+        .control-button, .window-control-button {
             height: 32px;
             width: 32px;
             display: inline-flex;
@@ -123,6 +123,13 @@
             position: relative;
             -webkit-app-region: no-drag;
             will-change: transform, opacity;
+            pointer-events: auto;
+            user-select: none;
+        }
+
+        .control-button:focus, .window-control-button:focus {
+            outline: none;
+            box-shadow: none;
         }
 
         .control-button:hover {
@@ -377,16 +384,16 @@
 <body>
     <div class="titlebar">
         <div class="utility-controls">
-            <button class="control-button settings" title="Settings" onclick="window.electronAPI.openSettings()">
+            <button class="control-button settings" title="Settings" onclick="window.electronAPI.openSettings()" tabindex="-1">
                 <span class="material-symbols-rounded">settings</span>
             </button>
-            <button class="control-button refresh" title="Refresh" onclick="window.electronAPI.refreshPage()">
+            <button class="control-button refresh" title="Refresh" onclick="window.electronAPI.refreshPage()" tabindex="-1">
                 <span class="material-symbols-rounded">refresh</span>
             </button>
-            <button class="control-button clear" title="Clear Cache" onclick="window.electronAPI.clearCache()">
+            <button class="control-button clear" title="Clear Cache" onclick="window.electronAPI.clearCache()" tabindex="-1">
                 <span class="material-symbols-rounded">cleaning_services</span>
             </button>
-            <button class="control-button cookies" title="Clear Cookies" onclick="window.electronAPI.clearCookies()">
+            <button class="control-button cookies" title="Clear Cookies" onclick="window.electronAPI.clearCookies()" tabindex="-1">
                 <span class="material-symbols-rounded">cookie</span>
             </button>
         </div>
@@ -396,16 +403,16 @@
             <div class="tabs-container" id="tabsContainer"></div>
         </div>
         <div class="window-controls">
-            <button class="control-button fullscreen" title="Toggle Fullscreen" onclick="toggleFullscreen()">
+            <button class="control-button fullscreen" title="Toggle Fullscreen" onclick="toggleFullscreen()" tabindex="-1">
                 <span class="material-symbols-rounded" id="fullscreen-icon">fullscreen</span>
             </button>
-            <button class="window-control-button" title="Minimize" onclick="window.electronAPI.minimizeWindow()">
+            <button class="window-control-button" title="Minimize" onclick="window.electronAPI.minimizeWindow()" tabindex="-1">
                 <span class="material-symbols-rounded">remove</span>
             </button>
-            <button class="window-control-button" title="Maximize" onclick="window.electronAPI.maximizeWindow()">
+            <button class="window-control-button" title="Maximize" onclick="window.electronAPI.maximizeWindow()" tabindex="-1">
                 <span class="material-symbols-rounded">crop_square</span>
             </button>
-            <button class="window-control-button close" title="Close" onclick="window.electronAPI.closeWindow()">
+            <button class="window-control-button close" title="Close" onclick="window.electronAPI.closeWindow()" tabindex="-1">
                 <span class="material-symbols-rounded">close</span>
             </button>
         </div>
@@ -620,6 +627,10 @@
             if (e.key === 'Escape' && isFullscreen) {
                 exitFullscreen();
             }
+        });
+
+        document.querySelector('.control-button.settings').addEventListener('keydown', (e) => {
+            e.preventDefault();
         });
     </script>
 </body>
