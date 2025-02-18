@@ -1,0 +1,80 @@
+{
+  "name": "anubisrp",
+  "version": "1.0.0",
+  "description": "AnubisRP Browser",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "tsc && electron .",
+    "build": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win",
+    "build:x64": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --x64",
+    "build:ia32": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --ia32",
+    "dev": "tsc-watch --onSuccess \"electron .\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": {
+    "name": "Anubis",
+    "email": "anubis@anubisrp.com",
+    "url": "https://anubisrp.com"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@types/electron": "^1.6.10",
+    "@types/node": "^20.11.24",
+    "copyfiles": "^2.4.1",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "tsc-watch": "^6.0.4",
+    "typescript": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.anubisrp.app",
+    "productName": "AnubisRP",
+    "directories": {
+      "output": "build",
+      "buildResources": "images"
+    },
+    "files": [
+      "dist/**/*",
+      "images/**/*",
+      "src/**/*.html",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "src",
+        "to": "src",
+        "filter": ["**/*.html"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "icon": "images/icon.ico",
+      "artifactName": "AnubisRP_Setup_v${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "AnubisRP",
+      "installerIcon": "images/icon.ico",
+      "uninstallerIcon": "images/icon.ico",
+      "installerHeaderIcon": "images/icon.ico",
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "images/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "images/icon.png"
+    }
+  }
+}

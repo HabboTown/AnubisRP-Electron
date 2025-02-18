@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        :root {
+            --background-color: #1a1a1a;
+            --text-color: #ffffff;
+            --hover-color: rgba(255, 255, 255, 0.08);
+            --accent-color: #d4af37;
+            --button-hover: rgba(212, 175, 55, 0.15);
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --background-color: #f8f8f8;
+                --text-color: #2d2d2d;
+                --hover-color: rgba(0, 0, 0, 0.05);
+                --accent-color: #d4af37;
+                --button-hover: rgba(212, 175, 55, 0.1);
+            }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--background-color);
+            color: var(--text-color);
+            user-select: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .titlebar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 32px;
+            background: var(--background-color);
+            -webkit-app-region: drag;
+            padding: 0 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .title {
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0.9;
+            letter-spacing: 0.3px;
+        }
+
+        .close-button {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            -webkit-app-region: no-drag;
+            opacity: 0.85;
+            transition: all 0.2s;
+        }
+
+        .close-button:hover {
+            background: #dc3545;
+            opacity: 1;
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            font-size: 13px;
+            line-height: 1.5;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .url {
+            font-size: 12px;
+            opacity: 0.7;
+            word-break: break-all;
+            background: var(--hover-color);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 0;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        button {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--hover-color);
+            color: var(--text-color);
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        button.primary {
+            background: var(--accent-color);
+            color: #000;
+        }
+
+        .material-symbols-rounded {
+            font-family: 'Material Symbols Rounded';
+            font-weight: 300;
+            font-style: normal;
+            font-size: 16px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" rel="stylesheet">
+</head>
+<body>
+    <div class="titlebar">
+        <div class="title">External Link</div>
+        <div class="close-button" onclick="closePrompt()">
+            <span class="material-symbols-rounded">close</span>
+        </div>
+    </div>
+    <div class="content">
+        <p class="message">Do you want to open this external link?</p>
+        <p class="url" id="external-url"></p>
+        <div class="buttons">
+            <button onclick="closePrompt()">Cancel</button>
+            <button class="primary" onclick="openLink()">Open Link</button>
+        </div>
+    </div>
+
+    <script>
+        let currentUrl = '';
+
+        window.electronAPI.onExternalLinkData(({ url }) => {
+            currentUrl = url;
+            document.getElementById('external-url').textContent = url;
+        });
+
+        function openLink() {
+            window.electronAPI.openExternalLink(currentUrl);
+        }
+
+        function closePrompt() {
+            window.electronAPI.goBack();
+        }
+    </script>
+</body>
+</html> 
