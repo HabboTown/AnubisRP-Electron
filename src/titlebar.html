@@ -25,16 +25,10 @@
             }
         }
 
-        html {
-            height: 100%;
-            overflow: hidden;
-        }
-
         body {
             margin: 0;
             padding: 0;
-            height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             background: var(--background-color);
             user-select: none;
             overflow: hidden;
@@ -76,8 +70,6 @@
             position: relative;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
             z-index: 1000;
-            -webkit-user-select: none;
-            user-select: none;
         }
 
         .title {
@@ -89,7 +81,6 @@
             font-weight: 500;
             letter-spacing: 0.3px;
             gap: 8px;
-            order: 2;
         }
 
         .title-icon {
@@ -107,7 +98,6 @@
             display: flex;
             -webkit-app-region: no-drag;
             height: 32px;
-            order: 3;
         }
 
         .utility-controls {
@@ -115,7 +105,6 @@
             -webkit-app-region: no-drag;
             margin-left: 2px;
             height: 32px;
-            order: 1;
         }
 
         .control-button, .window-control-button {
@@ -389,23 +378,10 @@
             font-size: 14px;
             pointer-events: none;
         }
-
-        .darwin .window-controls {
-            order: 1;
-            margin-left: 12px;
-        }
-
-        .darwin .utility-controls {
-            order: 2;
-        }
-
-        .darwin .title {
-            order: 3;
-        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,300,0,0" rel="stylesheet" />
 </head>
-<body class="${process.platform}">
+<body>
     <div class="titlebar">
         <div class="utility-controls">
             <button class="control-button settings" title="Settings" onclick="window.electronAPI.openSettings()" tabindex="-1">
