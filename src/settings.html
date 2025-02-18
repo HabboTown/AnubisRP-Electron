@@ -547,7 +547,7 @@
                 <span class="setting-label">Version</span>
                 <div class="version-info">
                     <span class="version-number">v1.2.0</span>
-                    <span class="version-status">Checking...</span>
+                    <span class="version-status">-</span>
                 </div>
             </div>
             <button class="check-updates-button" onclick="checkForUpdates()">
@@ -740,7 +740,7 @@
             status.className = 'version-status checking';
             isCheckingForUpdates = true;
 
-            setTimeout(() => {
+            let timeoutId = setTimeout(() => {
                 if (isCheckingForUpdates) {
                     isCheckingForUpdates = false;
                     status.textContent = 'Check Failed';
@@ -753,7 +753,62 @@
                         </span>
                     `;
                 }
-            }, 10000);
+            }, 2000);
+
+            const onNotAvailable = () => {
+                clearTimeout(timeoutId);
+                isCheckingForUpdates = false;
+                status.textContent = 'Latest';
+                status.className = 'version-status latest';
+                button.classList.remove('checking');
+                button.innerHTML = `
+                    <span class="button-content">
+                        <span class="material-symbols-rounded update-icon">sync</span>
+                        <span class="button-text">Check for Updates</span>
+                    </span>
+                `;
+                cleanup();
+            };
+
+            const onAvailable = (info) => {
+                clearTimeout(timeoutId);
+                isCheckingForUpdates = false;
+                status.textContent = `Update Available (${info.version})`;
+                status.className = 'version-status';
+                button.classList.remove('checking');
+                button.innerHTML = `
+                    <span class="button-content">
+                        <span class="material-symbols-rounded">download</span>
+                        <span class="button-text">Downloading...</span>
+                    </span>
+                `;
+                cleanup();
+            };
+
+            const onError = (error) => {
+                clearTimeout(timeoutId);
+                isCheckingForUpdates = false;
+                status.textContent = error === 'Update check timed out' ? 'Check Timed Out' : 'Check Failed';
+                status.className = 'version-status';
+                button.classList.remove('checking');
+                button.innerHTML = `
+                    <span class="button-content">
+                        <span class="material-symbols-rounded update-icon">sync</span>
+                        <span class="button-text">Try Again</span>
+                    </span>
+                `;
+                cleanup();
+            };
+
+            const cleanup = () => {
+                window.electronAPI.removeListener('update-not-available', onNotAvailable);
+                window.electronAPI.removeListener('update-available', onAvailable);
+                window.electronAPI.removeListener('update-error', onError);
+            };
+
+            window.electronAPI.onUpdateNotAvailable(onNotAvailable);
+            window.electronAPI.onUpdateAvailable(onAvailable);
+            window.electronAPI.onUpdateError(onError);
 
             window.electronAPI.checkForUpdates();
         }
@@ -768,72 +823,9 @@
             isCheckingForUpdates = true;
         });
 
-        window.electronAPI.onUpdateAvailable((info) => {
-            isCheckingForUpdates = false;
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = `Update Available (${info.version})`;
-            status.className = 'version-status';
-            button.classList.remove('checking');
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded">download</span>
-                    <span class="button-text">Downloading...</span>
-                </span>
-            `;
-        });
-
-        window.electronAPI.onUpdateNotAvailable(() => {
-            isCheckingForUpdates = false;
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = 'Latest';
-            status.className = 'version-status latest';
-            button.classList.remove('checking');
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Check for Updates</span>
-                </span>
-            `;
-        });
-
-        window.electronAPI.onUpdateError((error) => {
-            isCheckingForUpdates = false;
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = error === 'Update check timed out' ? 'Check Timed Out' : 'Check Failed';
-            status.className = 'version-status';
-            console.error('Update check failed:', error);
-            
-            button.classList.remove('checking');
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Try Again</span>
-                </span>
-            `;
-        });
-
-        window.electronAPI.onUpdateDownloaded((info) => {
-            isCheckingForUpdates = false;
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = 'Ready to Install';
-            status.className = 'version-status latest';
-            button.classList.remove('checking');
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded">system_update</span>
-                    <span class="button-text">Restart & Install</span>
-                </span>
-            `;
-            button.onclick = () => window.electronAPI.installUpdate();
-        });
+        window.electronAPI.onUpdateAvailable(() => {});
+        window.electronAPI.onUpdateNotAvailable(() => {});
+        window.electronAPI.onUpdateError(() => {});
 
         window.electronAPI.getAppVersion().then(version => {
             const versionNumber = document.querySelector('.version-number');
