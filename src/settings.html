@@ -740,25 +740,41 @@
             status.className = 'version-status checking';
             isCheckingForUpdates = true;
 
+            setTimeout(() => {
+                if (isCheckingForUpdates) {
+                    isCheckingForUpdates = false;
+                    status.textContent = 'Check Failed';
+                    status.className = 'version-status';
+                    button.classList.remove('checking');
+                    button.innerHTML = `
+                        <span class="button-content">
+                            <span class="material-symbols-rounded update-icon">sync</span>
+                            <span class="button-text">Try Again</span>
+                        </span>
+                    `;
+                }
+            }, 10000);
+
             window.electronAPI.checkForUpdates();
         }
 
         window.electronAPI.onCheckingForUpdate(() => {
             const status = document.querySelector('.version-status');
+            const button = document.querySelector('.check-updates-button');
+            
             status.textContent = 'Checking...';
             status.className = 'version-status checking';
-            
-            const button = document.querySelector('.check-updates-button');
             button.classList.add('checking');
             isCheckingForUpdates = true;
         });
 
         window.electronAPI.onUpdateAvailable((info) => {
+            isCheckingForUpdates = false;
             const status = document.querySelector('.version-status');
+            const button = document.querySelector('.check-updates-button');
+            
             status.textContent = `Update Available (${info.version})`;
             status.className = 'version-status';
-            
-            const button = document.querySelector('.check-updates-button');
             button.classList.remove('checking');
             button.innerHTML = `
                 <span class="button-content">
@@ -766,15 +782,15 @@
                     <span class="button-text">Downloading...</span>
                 </span>
             `;
-            isCheckingForUpdates = true;
         });
 
         window.electronAPI.onUpdateNotAvailable(() => {
+            isCheckingForUpdates = false;
             const status = document.querySelector('.version-status');
+            const button = document.querySelector('.check-updates-button');
+            
             status.textContent = 'Latest';
             status.className = 'version-status latest';
-            
-            const button = document.querySelector('.check-updates-button');
             button.classList.remove('checking');
             button.innerHTML = `
                 <span class="button-content">
@@ -782,32 +798,33 @@
                     <span class="button-text">Check for Updates</span>
                 </span>
             `;
-            isCheckingForUpdates = false;
         });
 
         window.electronAPI.onUpdateError((error) => {
+            isCheckingForUpdates = false;
             const status = document.querySelector('.version-status');
-            status.textContent = 'Check Failed';
+            const button = document.querySelector('.check-updates-button');
+            
+            status.textContent = error === 'Update check timed out' ? 'Check Timed Out' : 'Check Failed';
             status.className = 'version-status';
             console.error('Update check failed:', error);
             
-            const button = document.querySelector('.check-updates-button');
             button.classList.remove('checking');
             button.innerHTML = `
                 <span class="button-content">
                     <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Check for Updates</span>
+                    <span class="button-text">Try Again</span>
                 </span>
             `;
-            isCheckingForUpdates = false;
         });
 
         window.electronAPI.onUpdateDownloaded((info) => {
+            isCheckingForUpdates = false;
             const status = document.querySelector('.version-status');
+            const button = document.querySelector('.check-updates-button');
+            
             status.textContent = 'Ready to Install';
             status.className = 'version-status latest';
-            
-            const button = document.querySelector('.check-updates-button');
             button.classList.remove('checking');
             button.innerHTML = `
                 <span class="button-content">
@@ -816,13 +833,11 @@
                 </span>
             `;
             button.onclick = () => window.electronAPI.installUpdate();
-            isCheckingForUpdates = false;
         });
 
         window.electronAPI.getAppVersion().then(version => {
             const versionNumber = document.querySelector('.version-number');
             versionNumber.textContent = `v${version}`;
-            window.electronAPI.checkForUpdates();
         });
 
         document.querySelector('.close-button').addEventListener('click', () => {

@@ -866,44 +866,50 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
     autoUpdater.allowDowngrade = false;
-    autoUpdater.setFeedURL({
-      provider: 'github',
-      owner: 'HabboTown',
-      repo: 'AnubisRP-Electron',
-      releaseType: 'release'
-    });
     const log = require('electron-log');
     autoUpdater.logger = log;
     log.transports.file.level = 'debug';
-
+    
+    log.info('Starting update configuration');
+    log.info('App version:', app.getVersion());
+    
     const checkForUpdates = async () => {
       if (!mainWindow) return;
+      if (isCheckingForUpdates) {
+        log.info('Update check already in progress, skipping');
+        return;
+      }
       
       try {
-        console.log('Checking for updates...');
-        log.info('Checking for updates...');
+        isCheckingForUpdates = true;
+        log.info('Initiating update check...');
         mainWindow.webContents.send('checking-for-update');
+        
+        if (process.env.NODE_ENV !== 'production') {
+          setTimeout(() => {
+            isCheckingForUpdates = false;
+            mainWindow?.webContents.send('update-not-available');
+          }, 2000);
+          return;
+        }
+        
         const result = await autoUpdater.checkForUpdates();
-        console.log('Check update result:', result);
-        log.info('Check update result:', result);
+        log.info('Update check result:', result);
         
         if (!result) {
-          console.log('No update check result');
-          log.error('No update check result');
-          mainWindow.webContents.send('update-error', 'Failed to check for updates');
+          log.info('No update check result, assuming latest version');
+          mainWindow.webContents.send('update-not-available');
+          isCheckingForUpdates = false;
           return;
         }
 
-        setTimeout(() => {
-          if (mainWindow && isCheckingForUpdates) {
-            console.log('Update check timed out, assuming no updates');
-            log.info('Update check timed out, assuming no updates');
-            mainWindow.webContents.send('update-not-available');
-          }
-        }, 10000);
+        log.info('Update check completed');
+        log.info('Current version:', app.getVersion());
+        log.info('Latest version:', result.updateInfo.version);
+        
       } catch (error: any) {
-        console.error('Failed to check for updates:', error);
-        log.error('Failed to check for updates:', error);
+        log.error('Update check error:', error);
+        isCheckingForUpdates = false;
         if (mainWindow) {
           mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
         }
@@ -913,7 +919,6 @@ const createWindow = () => {
     let isCheckingForUpdates = false;
 
     autoUpdater.on('checking-for-update', () => {
-      console.log('Checking for update...');
       log.info('Checking for update...');
       isCheckingForUpdates = true;
       if (mainWindow) {
@@ -922,7 +927,6 @@ const createWindow = () => {
     });
 
     autoUpdater.on('update-available', (info: UpdateInfo) => {
-      console.log('Update available:', info.version);
       log.info('Update available:', info.version);
       isCheckingForUpdates = false;
       if (mainWindow) {
@@ -931,7 +935,6 @@ const createWindow = () => {
     });
 
     autoUpdater.on('update-not-available', (info: UpdateInfo) => {
-      console.log('Update not available. Current version:', info.version);
       log.info('Update not available. Current version:', info.version);
       isCheckingForUpdates = false;
       if (mainWindow) {
@@ -940,7 +943,6 @@ const createWindow = () => {
     });
 
     autoUpdater.on('error', (err: Error) => {
-      console.error('Update error:', err);
       log.error('Update error:', err);
       isCheckingForUpdates = false;
       if (mainWindow) {
@@ -949,14 +951,13 @@ const createWindow = () => {
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
-      console.log('Download progress:', progressObj.percent);
       if (mainWindow) {
         mainWindow.webContents.send('update-progress', progressObj);
       }
     });
 
     autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-      console.log('Update downloaded:', info.version);
+      log.info('Update downloaded:', info.version);
       isCheckingForUpdates = false;
       updateDownloaded = true;
       if (mainWindow) {
@@ -964,29 +965,26 @@ const createWindow = () => {
       }
     });
 
-    const updateCheckInterval = setInterval(() => {
-      if (!isCheckingForUpdates) {
-        void checkForUpdates();
-      }
-    }, 30 * 60 * 1000);
+    if (process.env.NODE_ENV === 'production') {
+      setTimeout(() => {
+        if (!isCheckingForUpdates) {
+          void checkForUpdates();
+        }
+      }, 5000);
 
-    setTimeout(() => {
-      if (!isCheckingForUpdates) {
-        void checkForUpdates();
-      }
-    }, 5000);
+      const updateCheckInterval = setInterval(() => {
+        if (!isCheckingForUpdates) {
+          void checkForUpdates();
+        }
+      }, 30 * 60 * 1000);
 
-    mainWindow.on('closed', () => {
-      clearInterval(updateCheckInterval);
-    });
+      mainWindow.on('closed', () => {
+        clearInterval(updateCheckInterval);
+      });
+    }
 
     ipcMain.on('check-for-updates', () => {
-      if (!isCheckingForUpdates) {
-        console.log('Manual update check requested');
-        void checkForUpdates();
-      } else {
-        console.log('Update check already in progress');
-      }
+      void checkForUpdates();
     });
 
     ipcMain.on('install-update', () => {
