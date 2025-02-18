@@ -866,62 +866,127 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
     autoUpdater.allowDowngrade = false;
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'HabboTown',
+      repo: 'AnubisRP-Electron',
+      releaseType: 'release'
+    });
     const log = require('electron-log');
     autoUpdater.logger = log;
     log.transports.file.level = 'debug';
 
     const checkForUpdates = async () => {
+      if (!mainWindow) return;
+      
       try {
         console.log('Checking for updates...');
-        mainWindow?.webContents.send('checking-for-update');
+        log.info('Checking for updates...');
+        mainWindow.webContents.send('checking-for-update');
         const result = await autoUpdater.checkForUpdates();
+        console.log('Check update result:', result);
+        log.info('Check update result:', result);
+        
         if (!result) {
           console.log('No update check result');
-          mainWindow?.webContents.send('update-not-available');
+          log.error('No update check result');
+          mainWindow.webContents.send('update-error', 'Failed to check for updates');
+          return;
         }
+
+        setTimeout(() => {
+          if (mainWindow && isCheckingForUpdates) {
+            console.log('Update check timed out, assuming no updates');
+            log.info('Update check timed out, assuming no updates');
+            mainWindow.webContents.send('update-not-available');
+          }
+        }, 10000);
       } catch (error: any) {
         console.error('Failed to check for updates:', error);
-        mainWindow?.webContents.send('update-error', error.message || 'Unknown error occurred');
+        log.error('Failed to check for updates:', error);
+        if (mainWindow) {
+          mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
+        }
       }
     };
 
-    setInterval(checkForUpdates, 30 * 60 * 1000); // Check every 30 minutes
-    setTimeout(checkForUpdates, 5000); // Initial check after 5 seconds
+    let isCheckingForUpdates = false;
 
     autoUpdater.on('checking-for-update', () => {
       console.log('Checking for update...');
-      mainWindow?.webContents.send('checking-for-update');
+      log.info('Checking for update...');
+      isCheckingForUpdates = true;
+      if (mainWindow) {
+        mainWindow.webContents.send('checking-for-update');
+      }
     });
 
     autoUpdater.on('update-available', (info: UpdateInfo) => {
       console.log('Update available:', info.version);
-      mainWindow?.webContents.send('update-available', info);
+      log.info('Update available:', info.version);
+      isCheckingForUpdates = false;
+      if (mainWindow) {
+        mainWindow.webContents.send('update-available', info);
+      }
     });
 
     autoUpdater.on('update-not-available', (info: UpdateInfo) => {
       console.log('Update not available. Current version:', info.version);
-      mainWindow?.webContents.send('update-not-available');
+      log.info('Update not available. Current version:', info.version);
+      isCheckingForUpdates = false;
+      if (mainWindow) {
+        mainWindow.webContents.send('update-not-available');
+      }
     });
 
     autoUpdater.on('error', (err: Error) => {
       console.error('Update error:', err);
-      mainWindow?.webContents.send('update-error', err.message);
+      log.error('Update error:', err);
+      isCheckingForUpdates = false;
+      if (mainWindow) {
+        mainWindow.webContents.send('update-error', err.message);
+      }
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
       console.log('Download progress:', progressObj.percent);
-      mainWindow?.webContents.send('update-progress', progressObj);
+      if (mainWindow) {
+        mainWindow.webContents.send('update-progress', progressObj);
+      }
     });
 
     autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
       console.log('Update downloaded:', info.version);
+      isCheckingForUpdates = false;
       updateDownloaded = true;
-      mainWindow?.webContents.send('update-downloaded', info);
+      if (mainWindow) {
+        mainWindow.webContents.send('update-downloaded', info);
+      }
+    });
+
+    const updateCheckInterval = setInterval(() => {
+      if (!isCheckingForUpdates) {
+        void checkForUpdates();
+      }
+    }, 30 * 60 * 1000);
+
+    setTimeout(() => {
+      if (!isCheckingForUpdates) {
+        void checkForUpdates();
+      }
+    }, 5000);
+
+    mainWindow.on('closed', () => {
+      clearInterval(updateCheckInterval);
     });
 
     ipcMain.on('check-for-updates', () => {
-      console.log('Manual update check requested');
-      void checkForUpdates();
+      if (!isCheckingForUpdates) {
+        console.log('Manual update check requested');
+        void checkForUpdates();
+      } else {
+        console.log('Update check already in progress');
+      }
     });
 
     ipcMain.on('install-update', () => {
