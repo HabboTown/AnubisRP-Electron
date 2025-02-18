@@ -69,15 +69,20 @@ const createWindow = () => {
       ]
     },
     frame: false,
-    titleBarStyle: 'hidden',
-    trafficLightPosition: process.platform === 'darwin' ? { x: 20, y: 10 } : { x: 10, y: 16 },
+    titleBarStyle: process.platform === 'darwin' ? 'customButtonsOnHover' : 'hidden',
+    trafficLightPosition: { x: 10, y: 16 },
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
     show: false,
     icon: process.platform === 'darwin' ? path.join(__dirname, '../images/icon.icns'): process.platform === 'win32' ? path.join(__dirname, '../images/icon.ico') : path.join(__dirname, '../images/icon.png'),
     minWidth: 800,
     minHeight: 600,
-    autoHideMenuBar: true
+    autoHideMenuBar: true,
+    titleBarOverlay: false
   });
+
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(path.join(__dirname, '../images/icon.png'));
+  }
 
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-background-timer-throttling');
@@ -535,7 +540,7 @@ const createWindow = () => {
       parent: mainWindow!,
       modal: false,
       frame: false,
-      titleBarStyle: 'hidden',
+      titleBarStyle: process.platform === 'darwin' ? 'customButtonsOnHover' : 'hidden',
       resizable: false,
       maximizable: false,
       minimizable: false,
@@ -544,7 +549,8 @@ const createWindow = () => {
         contextIsolation: true,
         preload: path.join(__dirname, 'preload.js')
       },
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f8f8f8'
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f8f8f8',
+      titleBarOverlay: false
     });
 
     settingsWindow.setMaxListeners(20);
