@@ -32,6 +32,8 @@
   "build": {
     "appId": "com.anubisrp.app",
     "productName": "AnubisRP",
+    "asar": true,
+    "asarUnpack": ["images/*"],
     "directories": {
       "output": "build",
       "buildResources": "images"
