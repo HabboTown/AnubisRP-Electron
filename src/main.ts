@@ -83,6 +83,7 @@ const createWindow = () => {
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   app.commandLine.appendSwitch('disable-site-isolation-trials');
+  app.commandLine.appendSwitch('disable-features', 'IsolateOrigins,site-per-process');
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer,NetworkServiceInProcess,QuicForceEnabled,BackForwardCache,NetworkQualityEstimator');
   app.commandLine.appendSwitch('ignore-certificate-errors');
   app.commandLine.appendSwitch('enable-gpu-memory-buffer-compositor-resources');
@@ -139,17 +140,29 @@ const createWindow = () => {
       textAreasAreResizable: false,
       defaultEncoding: 'UTF-8',
       offscreen: false,
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true,
       additionalArguments: [
         '--disable-web-security',
         '--ignore-gpu-blacklist',
         '--disable-gpu-process-crash-limit',
         '--max-active-webgl-contexts=32',
-        '--disable-webgl-context-limit'
+        '--disable-webgl-context-limit',
+        '--disable-site-isolation-trials',
+        '--disable-features=IsolateOrigins,site-per-process'
       ]
     }
   });
 
   const session = anubisView.webContents.session;
+  session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Access-Control-Allow-Origin': ['*']
+      }
+    });
+  });
 
   const cachePath = path.join(app.getPath('userData'), 'Cache');
   if (!fs.existsSync(cachePath)) {
