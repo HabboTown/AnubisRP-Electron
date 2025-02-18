@@ -394,25 +394,24 @@ const createWindow = () => {
   });
 
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow?.hide();
-    } else {
-      if (settingsWindow) {
-        settingsWindow.destroy();
-        settingsWindow = null;
-      }
-      if (externalLinkWindow) {
-        externalLinkWindow.destroy();
-        externalLinkWindow = null;
-      }
-      for (const [id, view] of externalTabs.entries()) {
-        view.webContents.removeAllListeners();
-        view.webContents.close();
-        externalTabs.delete(id);
-      }
-      app.exit(0);
+    if (settingsWindow) {
+      settingsWindow.destroy();
+      settingsWindow = null;
     }
+    if (externalLinkWindow) {
+      externalLinkWindow.destroy();
+      externalLinkWindow = null;
+    }
+    for (const [id, view] of externalTabs.entries()) {
+      view.webContents.removeAllListeners();
+      view.webContents.close();
+      externalTabs.delete(id);
+    }
+    if (anubisView) {
+      anubisView.webContents.removeAllListeners();
+      anubisView.webContents.close();
+    }
+    app.exit(0);
   });
 
   mainWindow.webContents.addListener('render-process-gone', (event, details) => {
