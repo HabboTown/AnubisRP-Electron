@@ -862,6 +862,7 @@ const createWindow = () => {
 
   let updateDownloaded = false;
   let isCheckingForUpdates = false;
+  let isManualCheck = false;
 
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
@@ -871,47 +872,50 @@ const createWindow = () => {
     log.transports.file.level = 'debug';
   }
 
-  const handleUpdateCheck = async () => {
+  const handleUpdateCheck = async (manual = false) => {
     if (!mainWindow) return;
-    if (isCheckingForUpdates) {
+    if (isCheckingForUpdates && !manual) {
       console.log('Update check already in progress, skipping');
       mainWindow.webContents.send('update-error', 'Update check already in progress');
       return;
     }
+
+    if (isCheckingForUpdates && manual) {
+      console.log('Forcing new update check...');
+      try {
+        autoUpdater.removeAllListeners();
+        setupUpdateListeners();
+      } catch (error) {
+        console.error('Error removing listeners:', error);
+      }
+    }
     
     try {
       isCheckingForUpdates = true;
+      isManualCheck = manual;
       mainWindow.webContents.send('checking-for-update');
-      
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Development mode - sending update-not-available');
-        setTimeout(() => {
-          if (mainWindow) {
-            mainWindow.webContents.send('update-not-available');
-            isCheckingForUpdates = false;
-          }
-        }, 500);
-        return;
-      }
 
-      const feedURL: { provider: 'github'; owner: string; repo: string; token?: string } = {
-        provider: 'github',
-        owner: process.env.GITHUB_USERNAME || 'Hxmada',
-        repo: 'AnubisRP-Electron'
+      const feedURL = {
+        provider: 'github' as const,
+        owner: 'Hxmada',
+        repo: 'AnubisRP-Electron',
+        token: process.env.GH_TOKEN,
+        private: false
       };
 
-      if (process.env.GH_TOKEN) {
-        feedURL.token = process.env.GH_TOKEN;
-      }
-
-      console.log('Setting feed URL:', { ...feedURL, token: feedURL.token ? '***' : 'not set' });
+      console.log('Setting feed URL:', { ...feedURL, token: '***' });
       
       try {
         autoUpdater.setFeedURL(feedURL);
+        if (process.env.NODE_ENV !== 'production' && manual) {
+          console.log('Forcing update check in development mode');
+          autoUpdater.forceDevUpdateConfig = true;
+        }
         await autoUpdater.checkForUpdates();
       } catch (error: any) {
         console.error('Update check failed:', error);
         isCheckingForUpdates = false;
+        isManualCheck = false;
         if (mainWindow) {
           mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
         }
@@ -919,63 +923,71 @@ const createWindow = () => {
     } catch (error: any) {
       console.error('Update check error:', error);
       isCheckingForUpdates = false;
+      isManualCheck = false;
       if (mainWindow) {
         mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
       }
     }
   };
 
-  autoUpdater.on('checking-for-update', () => {
-    isCheckingForUpdates = true;
-    if (mainWindow) {
-      mainWindow.webContents.send('checking-for-update');
-    }
-  });
+  const setupUpdateListeners = () => {
+    autoUpdater.on('checking-for-update', () => {
+      isCheckingForUpdates = true;
+      if (mainWindow) {
+        mainWindow.webContents.send('checking-for-update');
+      }
+    });
 
-  autoUpdater.on('update-available', (info: UpdateInfo) => {
-    isCheckingForUpdates = false;
-    if (mainWindow) {
-      mainWindow.webContents.send('update-available', info);
-    }
-  });
+    autoUpdater.on('update-available', (info: UpdateInfo) => {
+      console.log('Update available:', info);
+      isCheckingForUpdates = false;
+      if (mainWindow) {
+        mainWindow.webContents.send('update-available', info);
+      }
+    });
 
-  autoUpdater.on('update-not-available', (info: UpdateInfo) => {
-    isCheckingForUpdates = false;
-    if (mainWindow) {
-      mainWindow.webContents.send('update-not-available');
-    }
-  });
+    autoUpdater.on('update-not-available', (info: UpdateInfo) => {
+      console.log('Update not available');
+      isCheckingForUpdates = false;
+      if (mainWindow) {
+        mainWindow.webContents.send('update-not-available');
+      }
+    });
 
-  autoUpdater.on('error', (err: Error) => {
-    isCheckingForUpdates = false;
-    if (mainWindow) {
-      mainWindow.webContents.send('update-error', err.message);
-    }
-  });
+    autoUpdater.on('error', (err: Error) => {
+      console.error('Update error:', err);
+      isCheckingForUpdates = false;
+      if (mainWindow) {
+        mainWindow.webContents.send('update-error', err.message);
+      }
+    });
 
-  autoUpdater.on('download-progress', (progressObj) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('update-progress', progressObj);
-    }
-  });
+    autoUpdater.on('download-progress', (progressObj) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('update-progress', progressObj);
+      }
+    });
 
-  autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-    isCheckingForUpdates = false;
-    updateDownloaded = true;
-    if (mainWindow) {
-      mainWindow.webContents.send('update-downloaded', info);
-    }
-  });
+    autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
+      isCheckingForUpdates = false;
+      updateDownloaded = true;
+      if (mainWindow) {
+        mainWindow.webContents.send('update-downloaded', info);
+      }
+    });
+  };
+
+  setupUpdateListeners();
 
   setTimeout(() => {
     if (!isCheckingForUpdates) {
-      void handleUpdateCheck();
+      void handleUpdateCheck(false);
     }
   }, 5000);
 
   const updateCheckInterval = setInterval(() => {
-    if (!isCheckingForUpdates) {
-      void handleUpdateCheck();
+    if (!isCheckingForUpdates && !isManualCheck) {
+      void handleUpdateCheck(false);
     }
   }, 30 * 60 * 1000);
 
@@ -984,7 +996,7 @@ const createWindow = () => {
   });
 
   ipcMain.on('check-for-updates', () => {
-    void handleUpdateCheck();
+    void handleUpdateCheck(true);
   });
 
   ipcMain.handle('get-app-version', () => {

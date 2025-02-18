@@ -730,7 +730,10 @@
         }
 
         function checkForUpdates() {
-            if (isCheckingForUpdates) return;
+            if (isCheckingForUpdates) {
+                console.log('Already checking for updates');
+                return;
+            }
             
             const button = document.querySelector('.check-updates-button');
             const status = document.querySelector('.version-status');
@@ -751,17 +754,23 @@
                 `;
             };
 
-            const onNotAvailable = () => {
-                isCheckingForUpdates = false;
-                status.textContent = 'Latest';
-                status.className = 'version-status latest';
-                resetUpdateCheck();
+            const cleanup = () => {
                 window.electronAPI.removeListener('update-not-available', onNotAvailable);
                 window.electronAPI.removeListener('update-available', onAvailable);
                 window.electronAPI.removeListener('update-error', onError);
             };
 
+            const onNotAvailable = () => {
+                console.log('Update not available');
+                isCheckingForUpdates = false;
+                status.textContent = 'Latest';
+                status.className = 'version-status latest';
+                resetUpdateCheck();
+                cleanup();
+            };
+
             const onAvailable = (info) => {
+                console.log('Update available:', info);
                 isCheckingForUpdates = false;
                 status.textContent = 'Update Available';
                 status.className = 'version-status';
@@ -772,20 +781,16 @@
                         <span class="button-text">Update Available</span>
                     </span>
                 `;
-                window.electronAPI.removeListener('update-not-available', onNotAvailable);
-                window.electronAPI.removeListener('update-available', onAvailable);
-                window.electronAPI.removeListener('update-error', onError);
+                cleanup();
             };
 
             const onError = (error) => {
+                console.error('Update check error:', error);
                 isCheckingForUpdates = false;
                 status.textContent = 'Check Failed';
                 status.className = 'version-status';
                 resetUpdateCheck();
-                console.error('Update check error:', error);
-                window.electronAPI.removeListener('update-not-available', onNotAvailable);
-                window.electronAPI.removeListener('update-available', onAvailable);
-                window.electronAPI.removeListener('update-error', onError);
+                cleanup();
             };
 
             window.electronAPI.onUpdateNotAvailable(onNotAvailable);

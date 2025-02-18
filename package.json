@@ -37,7 +37,8 @@
       "owner": "${env.GITHUB_USERNAME}",
       "repo": "AnubisRP-Electron",
       "private": false,
-      "releaseType": "release"
+      "releaseType": "release",
+      "token": "${env.GH_TOKEN}"
     },
     "directories": {
       "output": "build",
