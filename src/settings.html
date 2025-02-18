@@ -769,16 +769,27 @@
             isCheckingForUpdates = true;
         });
 
+        window.electronAPI.onUpdateNotAvailable(() => {
+            const status = document.querySelector('.version-status');
+            status.textContent = 'Latest';
+            status.className = 'version-status latest';
+            
+            const button = document.querySelector('.check-updates-button');
+            button.classList.remove('checking');
+            button.innerHTML = `
+                <span class="button-content">
+                    <span class="material-symbols-rounded update-icon">sync</span>
+                    <span class="button-text">Check for Updates</span>
+                </span>
+            `;
+            isCheckingForUpdates = false;
+        });
+
         window.electronAPI.onUpdateError((error) => {
             const status = document.querySelector('.version-status');
-            if (error === 'No updates available') {
-                status.textContent = 'Latest';
-                status.className = 'version-status latest';
-            } else {
-                status.textContent = 'Check Failed';
-                status.className = 'version-status';
-                console.error('Update check failed:', error);
-            }
+            status.textContent = 'Check Failed';
+            status.className = 'version-status';
+            console.error('Update check failed:', error);
             
             const button = document.querySelector('.check-updates-button');
             button.classList.remove('checking');

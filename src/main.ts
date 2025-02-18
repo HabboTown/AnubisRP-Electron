@@ -862,7 +862,7 @@ const createWindow = () => {
         const result = await autoUpdater.checkForUpdates();
         if (!result) {
           console.log('No update check result');
-          mainWindow?.webContents.send('update-error', 'No updates available');
+          mainWindow?.webContents.send('update-not-available');
         }
       } catch (error: any) {
         console.error('Failed to check for updates:', error);
@@ -885,7 +885,7 @@ const createWindow = () => {
 
     autoUpdater.on('update-not-available', (info: UpdateInfo) => {
       console.log('Update not available. Current version:', info.version);
-      mainWindow?.webContents.send('update-error', 'No updates available');
+      mainWindow?.webContents.send('update-not-available');
     });
 
     autoUpdater.on('error', (err: Error) => {
