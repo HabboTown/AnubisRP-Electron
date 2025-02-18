@@ -863,7 +863,7 @@ const createWindow = () => {
   let updateDownloaded = false;
   let isCheckingForUpdates = false;
 
-  const checkForUpdates = async () => {
+  const handleUpdateCheck = async () => {
     if (!mainWindow) return;
     if (isCheckingForUpdates) {
       console.log('Update check already in progress, skipping');
@@ -890,7 +890,6 @@ const createWindow = () => {
         console.log('No update check result, assuming latest version');
         mainWindow.webContents.send('update-not-available');
         isCheckingForUpdates = false;
-        return;
       }
     } catch (error: any) {
       console.error('Update check error:', error);
@@ -901,81 +900,73 @@ const createWindow = () => {
     }
   };
 
-  if (process.env.NODE_ENV === 'production') {
-    autoUpdater.autoDownload = true;
-    autoUpdater.allowDowngrade = false;
-    const log = require('electron-log');
-    autoUpdater.logger = log;
-    log.transports.file.level = 'debug';
-    
-    autoUpdater.setFeedURL({
-      provider: 'github',
-      owner: process.env.GITHUB_USERNAME || 'Hxmada',
-      repo: 'AnubisRP-Electron',
-      token: process.env.GH_TOKEN
-    });
-    
-    autoUpdater.on('checking-for-update', () => {
-      isCheckingForUpdates = true;
-      if (mainWindow) {
-        mainWindow.webContents.send('checking-for-update');
-      }
-    });
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: process.env.GITHUB_USERNAME || 'Hxmada',
+    repo: 'AnubisRP-Electron',
+    token: process.env.GH_TOKEN
+  });
 
-    autoUpdater.on('update-available', (info: UpdateInfo) => {
-      isCheckingForUpdates = false;
-      if (mainWindow) {
-        mainWindow.webContents.send('update-available', info);
-      }
-    });
+  autoUpdater.on('checking-for-update', () => {
+    isCheckingForUpdates = true;
+    if (mainWindow) {
+      mainWindow.webContents.send('checking-for-update');
+    }
+  });
 
-    autoUpdater.on('update-not-available', (info: UpdateInfo) => {
-      isCheckingForUpdates = false;
-      if (mainWindow) {
-        mainWindow.webContents.send('update-not-available');
-      }
-    });
+  autoUpdater.on('update-available', (info: UpdateInfo) => {
+    isCheckingForUpdates = false;
+    if (mainWindow) {
+      mainWindow.webContents.send('update-available', info);
+    }
+  });
 
-    autoUpdater.on('error', (err: Error) => {
-      isCheckingForUpdates = false;
-      if (mainWindow) {
-        mainWindow.webContents.send('update-error', err.message);
-      }
-    });
+  autoUpdater.on('update-not-available', (info: UpdateInfo) => {
+    isCheckingForUpdates = false;
+    if (mainWindow) {
+      mainWindow.webContents.send('update-not-available');
+    }
+  });
 
-    autoUpdater.on('download-progress', (progressObj) => {
-      if (mainWindow) {
-        mainWindow.webContents.send('update-progress', progressObj);
-      }
-    });
+  autoUpdater.on('error', (err: Error) => {
+    isCheckingForUpdates = false;
+    if (mainWindow) {
+      mainWindow.webContents.send('update-error', err.message);
+    }
+  });
 
-    autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-      isCheckingForUpdates = false;
-      updateDownloaded = true;
-      if (mainWindow) {
-        mainWindow.webContents.send('update-downloaded', info);
-      }
-    });
+  autoUpdater.on('download-progress', (progressObj) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('update-progress', progressObj);
+    }
+  });
 
-    setTimeout(() => {
-      if (!isCheckingForUpdates) {
-        void checkForUpdates();
-      }
-    }, 5000);
+  autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
+    isCheckingForUpdates = false;
+    updateDownloaded = true;
+    if (mainWindow) {
+      mainWindow.webContents.send('update-downloaded', info);
+    }
+  });
 
-    const updateCheckInterval = setInterval(() => {
-      if (!isCheckingForUpdates) {
-        void checkForUpdates();
-      }
-    }, 30 * 60 * 1000);
+  setTimeout(() => {
+    if (!isCheckingForUpdates) {
+      void handleUpdateCheck();
+    }
+  }, 5000);
 
-    mainWindow.on('closed', () => {
-      clearInterval(updateCheckInterval);
-    });
-  }
+  const updateCheckInterval = setInterval(() => {
+    if (!isCheckingForUpdates) {
+      void handleUpdateCheck();
+    }
+  }, 30 * 60 * 1000);
+
+  mainWindow.on('closed', () => {
+    clearInterval(updateCheckInterval);
+  });
 
   ipcMain.on('check-for-updates', () => {
-    void checkForUpdates();
+    void handleUpdateCheck();
   });
 
   ipcMain.handle('get-app-version', () => {
