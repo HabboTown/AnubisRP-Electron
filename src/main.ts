@@ -895,33 +895,27 @@ const createWindow = () => {
 
       autoUpdater.autoDownload = true;
       autoUpdater.allowDowngrade = false;
-      const feedURL = {
-        provider: 'github' as const,
+      const feedURL: { provider: 'github'; owner: string; repo: string; token?: string } = {
+        provider: 'github',
         owner: process.env.GITHUB_USERNAME || 'Hxmada',
-        repo: 'AnubisRP-Electron',
-        token: process.env.GH_TOKEN
+        repo: 'AnubisRP-Electron'
       };
 
-      console.log('Setting feed URL:', { ...feedURL, token: '***' });
-      autoUpdater.setFeedURL(feedURL);
-      const updateCheckPromise = autoUpdater.checkForUpdates();
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Update check timed out')), 30000);
-      });
-
-      const result = await Promise.race([updateCheckPromise, timeoutPromise]);
-      
-      if (!result) {
-        throw new Error('No update check result received');
+      if (process.env.GH_TOKEN) {
+        feedURL.token = process.env.GH_TOKEN;
       }
 
-      console.log('Update check completed successfully');
-      if (mainWindow) {
-        mainWindow.webContents.send('update-not-available');
+      console.log('Setting feed URL:', { ...feedURL, token: feedURL['token'] ? '***' : 'not set' });
+      
+      try {
+        autoUpdater.setFeedURL(feedURL);
+        await autoUpdater.checkForUpdates();
+      } catch (error: any) {
+        console.error('Update check failed:', error);
+        throw new Error(error.message || 'Failed to check for updates');
       }
     } catch (error: any) {
       console.error('Update check error:', error);
-      isCheckingForUpdates = false;
       if (mainWindow) {
         mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
       }
