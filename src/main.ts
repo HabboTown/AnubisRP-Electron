@@ -397,6 +397,21 @@ const createWindow = () => {
     if (!isQuitting) {
       event.preventDefault();
       mainWindow?.hide();
+    } else {
+      if (settingsWindow) {
+        settingsWindow.destroy();
+        settingsWindow = null;
+      }
+      if (externalLinkWindow) {
+        externalLinkWindow.destroy();
+        externalLinkWindow = null;
+      }
+      for (const [id, view] of externalTabs.entries()) {
+        view.webContents.removeAllListeners();
+        view.webContents.close();
+        externalTabs.delete(id);
+      }
+      app.exit(0);
     }
   });
 
