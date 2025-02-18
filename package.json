@@ -1,16 +1,16 @@
 {
   "name": "anubisrp",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "description": "AnubisRP Browser",
   "main": "dist/main.js",
   "scripts": {
     "start": "tsc && electron .",
-    "build": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win",
-    "build:x64": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --x64",
-    "build:ia32": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --ia32",
-    "build:mac": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --mac",
-    "build:linux": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --linux",
-    "build:all": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build -mwl",
+    "build": "set NODE_ENV=production && tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win",
+    "build:x64": "set NODE_ENV=production && tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --x64",
+    "build:ia32": "set NODE_ENV=production && tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win --ia32",
+    "build:mac": "export NODE_ENV=production && tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --mac",
+    "build:linux": "export NODE_ENV=production && tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --linux",
+    "build:all": "set NODE_ENV=production && tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build -mwl",
     "dev": "tsc-watch --onSuccess \"electron .\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -32,13 +32,13 @@
   "build": {
     "appId": "com.anubisrp.app",
     "productName": "AnubisRP",
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "HabboTown",
-        "repo": "AnubisRP-Electron"
-      }
-    ],
+    "publish": {
+      "provider": "github",
+      "owner": "HabboTown",
+      "repo": "AnubisRP-Electron",
+      "private": false,
+      "releaseType": "release"
+    },
     "directories": {
       "output": "build",
       "buildResources": "images"
