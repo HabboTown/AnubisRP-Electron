@@ -423,7 +423,7 @@
             <div class="setting-item">
                 <span class="setting-label">Frame Rate</span>
                 <div class="fps-controls">
-                    <input type="range" class="setting-input fps-slider" id="fps" min="60" max="400" step="1">
+                    <input type="range" class="setting-input fps-slider" id="fps" min="20" max="400" step="1">
                     <span class="fps-value">60 FPS</span>
                 </div>
             </div>
@@ -606,6 +606,10 @@
                 if (!hasUnsavedChanges) saveButton.textContent = 'No Changes';
             }, 2000);
         }
+
+        document.querySelector('.close-button').addEventListener('click', () => {
+            window.electronAPI.closeSettings();
+        });
     </script>
 </body>
 </html> 

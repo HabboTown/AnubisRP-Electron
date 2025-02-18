@@ -9,18 +9,69 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearCookies: () => ipcRenderer.send('clear-cookies'),
   openSettings: () => ipcRenderer.send('open-settings'),
   goBack: () => ipcRenderer.send('go-back'),
-  onLoadingProgress: (callback: (progress: number) => void) => ipcRenderer.on('loading-progress', (_event, progress) => callback(progress)),
-  onSettingsLoad: (callback: (settings: any) => void) => ipcRenderer.on('settings-load', (_event, settings) => callback(settings)),
+  onLoadingProgress: (callback: (progress: number) => void) => {
+    const handler = (_event: any, progress: number) => callback(progress);
+    ipcRenderer.on('loading-progress', handler);
+    return () => ipcRenderer.removeListener('loading-progress', handler);
+  },
+  onSettingsLoad: (callback: (settings: any) => void) => {
+    const handler = (_event: any, settings: any) => callback(settings);
+    ipcRenderer.on('settings-load', handler);
+    return () => ipcRenderer.removeListener('settings-load', handler);
+  },
   updateSettings: (settings: any) => ipcRenderer.send('update-settings', settings),
   previewSettings: (settings: any) => ipcRenderer.send('preview-settings', settings),
-  onUpdateColors: (callback: (color: string) => void) => ipcRenderer.on('update-colors', (_event, color) => callback(color)),
-  onExternalLinkData: (callback: (data: { url: string }) => void) => { ipcRenderer.on('external-link-data', (_event, data) => callback(data)); },
-  openExternalLink: (url: string) => { ipcRenderer.send('open-external-link', url); },
+  onUpdateColors: (callback: (color: string) => void) => {
+    const handler = (_event: any, color: string) => callback(color);
+    ipcRenderer.on('update-colors', handler);
+    return () => ipcRenderer.removeListener('update-colors', handler);
+  },
+  onExternalLinkData: (callback: (data: { url: string }) => void) => {
+    const handler = (_event: any, data: { url: string }) => callback(data);
+    ipcRenderer.on('external-link-data', handler);
+    return () => ipcRenderer.removeListener('external-link-data', handler);
+  },
+  openExternalLink: (url: string) => ipcRenderer.send('open-external-link', url),
   toggleFullscreen: (isFullscreen: boolean) => ipcRenderer.send('toggle-fullscreen', isFullscreen),
-  onFullscreenChanged: (callback: (isFullscreen: boolean) => void) => ipcRenderer.on('fullscreen-changed', (_event, isFullscreen) => callback(isFullscreen)),
-  onExternalTabCreated: (callback: (data: { id: number, title: string }) => void) => { ipcRenderer.on('external-tab-created', (_event, data) => callback(data)); },
-  onExternalTabUpdated: (callback: (data: { id: number, title: string }) => void) => { ipcRenderer.on('external-tab-updated', (_event, data) => callback(data)); },
-  onExternalTabClosed: (callback: (tabId: number) => void) => { ipcRenderer.on('external-tab-closed', (_event, tabId) => callback(tabId)); },
-  closeExternalTab: (tabId: number) => { ipcRenderer.send('close-external-tab', tabId); },
-  switchToTab: (tabId: number | 'main') => {  ipcRenderer.send('switch-to-tab', tabId); }
+  onFullscreenChanged: (callback: (isFullscreen: boolean) => void) => {
+    const handler = (_event: any, isFullscreen: boolean) => callback(isFullscreen);
+    ipcRenderer.on('fullscreen-changed', handler);
+    return () => ipcRenderer.removeListener('fullscreen-changed', handler);
+  },
+  onExternalTabCreated: (callback: (data: { id: number, title: string }) => void) => {
+    const handler = (_event: any, data: { id: number, title: string }) => callback(data);
+    ipcRenderer.on('external-tab-created', handler);
+    return () => ipcRenderer.removeListener('external-tab-created', handler);
+  },
+  onExternalTabUpdated: (callback: (data: { id: number, title: string }) => void) => {
+    const handler = (_event: any, data: { id: number, title: string }) => callback(data);
+    ipcRenderer.on('external-tab-updated', handler);
+    return () => ipcRenderer.removeListener('external-tab-updated', handler);
+  },
+  onExternalTabClosed: (callback: (tabId: number) => void) => {
+    const handler = (_event: any, tabId: number) => callback(tabId);
+    ipcRenderer.on('external-tab-closed', handler);
+    return () => ipcRenderer.removeListener('external-tab-closed', handler);
+  },
+  closeExternalTab: (tabId: number) => ipcRenderer.send('close-external-tab', tabId),
+  switchToTab: (tabId: number | 'main') => ipcRenderer.send('switch-to-tab', tabId),
+  checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+  installUpdate: () => ipcRenderer.send('install-update'),
+  onUpdateAvailable: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('update-available', handler);
+    return () => ipcRenderer.removeListener('update-available', handler);
+  },
+  onUpdateDownloaded: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('update-downloaded', handler);
+    return () => ipcRenderer.removeListener('update-downloaded', handler);
+  },
+  onUpdateError: (callback: (error: string) => void) => {
+    const handler = (_event: any, error: string) => callback(error);
+    ipcRenderer.on('update-error', handler);
+    return () => ipcRenderer.removeListener('update-error', handler);
+  },
+  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
+  closeSettings: () => ipcRenderer.send('close-settings'),
 }); 

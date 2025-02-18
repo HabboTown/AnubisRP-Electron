@@ -390,7 +390,7 @@
                 <span class="material-symbols-rounded">cookie</span>
             </button>
         </div>
-        <div class="title">
+        <div class="title" id="titleBar" ondblclick="handleTitleBarDoubleClick()">
             <img src="../images/Animatedprofile.gif" class="title-icon" onclick="handleTitleClick()" style="-webkit-app-region: no-drag;cursor: pointer;">
             <span class="title-text" onclick="handleTitleClick()" style="-webkit-app-region: no-drag;cursor: pointer;">AnubisRP</span>
             <div class="tabs-container" id="tabsContainer"></div>
@@ -411,6 +411,8 @@
         </div>
     </div>
     <div class="loading-bar" id="loadingBar"></div>
+
+    <iframe id="updateIndicator" src="update-indicator.html" style="border: none; position: fixed; bottom: 0; right: 0; width: 300px; height: 100px; pointer-events: none; z-index: 1000;"></iframe>
 
     <script>
         const loadingBar = document.querySelector('.loading-bar');
@@ -561,6 +563,23 @@
         }
 
         let isFullscreen = false;
+        let lastWindowState = 'normal';
+
+        function handleTitleBarDoubleClick() {
+            if (isFullscreen) {
+                exitFullscreen();
+            } else {
+                window.electronAPI.maximizeWindow();
+            }
+        }
+
+        function exitFullscreen() {
+            isFullscreen = false;
+            document.body.classList.remove('fullscreen');
+            const icon = document.getElementById('fullscreen-icon');
+            icon.textContent = 'fullscreen';
+            window.electronAPI.toggleFullscreen(false);
+        }
 
         function toggleFullscreen() {
             isFullscreen = !isFullscreen;
@@ -570,11 +589,23 @@
             window.electronAPI.toggleFullscreen(isFullscreen);
         }
 
-        function exitFullscreen() {
+        let dragStarted = false;
+        document.getElementById('titleBar').addEventListener('mousedown', () => {
             if (isFullscreen) {
-                toggleFullscreen();
+                dragStarted = true;
             }
-        }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (dragStarted && e.buttons === 1) {
+                dragStarted = false;
+                exitFullscreen();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            dragStarted = false;
+        });
 
         window.electronAPI.onFullscreenChanged((fullscreen) => {
             if (isFullscreen !== fullscreen) {

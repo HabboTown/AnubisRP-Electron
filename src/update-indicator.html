@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .update-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 1000;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    .update-indicator.show {
+      display: flex;
+    }
+
+    .download-icon {
+      width: 20px;
+      height: 20px;
+      animation: pulse 1.5s infinite;
+    }
+
+    .update-button {
+      background: #4CAF50;
+      border: none;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .update-button:hover {
+      background: #45a049;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="updateIndicator" class="update-indicator">
+    <svg class="download-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
+      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+    </svg>
+    <span id="updateMessage">Update available</span>
+    <button id="updateButton" class="update-button" style="display: none">Install & Restart</button>
+  </div>
+
+  <script>
+    let updateAvailable = false;
+    let updateDownloaded = false;
+
+    window.electronAPI.getUpdateStatus().then(status => {
+      updateDownloaded = status;
+      if (status) {
+        showUpdateButton();
+      }
+    });
+
+    window.electronAPI.onUpdateAvailable(() => {
+      updateAvailable = true;
+      document.getElementById('updateIndicator').classList.add('show');
+      document.getElementById('updateMessage').textContent = 'Downloading update...';
+    });
+
+    window.electronAPI.onUpdateDownloaded(() => {
+      updateDownloaded = true;
+      showUpdateButton();
+    });
+
+    window.electronAPI.onUpdateError((error) => {
+      document.getElementById('updateMessage').textContent = `Update error: ${error}`;
+      setTimeout(() => {
+        document.getElementById('updateIndicator').classList.remove('show');
+      }, 5000);
+    });
+
+    function showUpdateButton() {
+      document.getElementById('updateMessage').textContent = 'Update ready to install';
+      document.getElementById('updateButton').style.display = 'block';
+      document.getElementById('updateIndicator').classList.add('show');
+    }
+
+    document.getElementById('updateButton').addEventListener('click', () => {
+      window.electronAPI.installUpdate();
+    });
+
+    setInterval(() => {
+      if (!updateAvailable && !updateDownloaded) {
+        window.electronAPI.checkForUpdates();
+      }
+    }, 30 * 60 * 1000);
+  </script>
+</body>
+</html> 

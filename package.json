@@ -1,6 +1,6 @@
 {
   "name": "anubisrp",
-  "version": "1.0.0",
+  "version": "1.1",
   "description": "AnubisRP Browser",
   "main": "dist/main.js",
   "scripts": {
@@ -32,6 +32,13 @@
   "build": {
     "appId": "com.anubisrp.app",
     "productName": "AnubisRP",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "HabboTown",
+        "repo": "AnubisRP-Electron"
+      }
+    ],
     "directories": {
       "output": "build",
       "buildResources": "images"
@@ -51,19 +58,15 @@
     ],
     "win": {
       "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64", "ia32"]
-        }
+        "nsis"
       ],
       "icon": "images/icon.ico",
       "artifactName": "AnubisRP_Setup_v${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": "always",
+      "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "AnubisRP",
       "installerIcon": "images/icon.ico",
@@ -79,5 +82,8 @@
       "target": "AppImage",
       "icon": "images/icon.png"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
   }
 }

@@ -1,4 +1,7 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, BrowserView, screen, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
+import { WebContents, Event as ElectronEvent } from 'electron/main';
+import { UpdateInfo } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -70,7 +73,7 @@ const createWindow = () => {
     trafficLightPosition: { x: 10, y: 16 },
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
     show: false,
-    icon: path.join(__dirname, '../images/icon.png'),
+    icon: process.platform === 'darwin' ? path.join(__dirname, '../images/icon.icns'): process.platform === 'win32' ? path.join(__dirname, '../images/icon.ico') : path.join(__dirname, '../images/icon.png'),
     minWidth: 800,
     minHeight: 600,
     autoHideMenuBar: true
@@ -86,7 +89,8 @@ const createWindow = () => {
   app.commandLine.appendSwitch('enable-hardware-overlays');
   app.commandLine.appendSwitch('enable-zero-copy');
   app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
-  app.commandLine.appendSwitch('force-gpu-mem-available-mb', '2048');
+  app.commandLine.appendSwitch('force-gpu-mem-available-mb', '16384');
+  app.commandLine.appendSwitch('js-flags', '--max-old-space-size=16384');
   app.commandLine.appendSwitch('enable-unsafe-webgpu');
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
   app.commandLine.appendSwitch('enable-oop-rasterization');
@@ -95,7 +99,7 @@ const createWindow = () => {
   app.commandLine.appendSwitch('enable-parallel-downloading');
   app.commandLine.appendSwitch('enable-tcp-fast-open');
   app.commandLine.appendSwitch('enable-websocket-multiplexing');
-  app.commandLine.appendSwitch('disk-cache-size', '104857600');
+  app.commandLine.appendSwitch('disk-cache-size', '1073741824');
   app.commandLine.appendSwitch('enable-gpu-shader-disk-cache');
   app.commandLine.appendSwitch('enable-gpu-shader-cache-for-drivers');
   app.commandLine.appendSwitch('enable-gpu-program-cache');
@@ -106,6 +110,15 @@ const createWindow = () => {
   app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
   app.commandLine.appendSwitch('disable-gpu-vsync');
   app.commandLine.appendSwitch('disable-software-rasterizer');
+  app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
+  app.commandLine.appendSwitch('enable-gpu-service-logging');
+  app.commandLine.appendSwitch('enable-webgl-draft-extensions');
+  app.commandLine.appendSwitch('enable-webgl-image-chromium');
+  app.commandLine.appendSwitch('disable-webgl-image-chromium-sync-extension');
+  app.commandLine.appendSwitch('disable-webgl-lose-context-on-memory-pressure');
+  app.commandLine.appendSwitch('disable-webgl-lose-context-on-out-of-memory');
+  app.commandLine.appendSwitch('disable-webgl-context-loss-on-memory-pressure');
+  app.commandLine.appendSwitch('disable-webgl-context-loss-on-gpu-reset');
 
   const anubisView = new BrowserView({
     webPreferences: {
@@ -125,7 +138,14 @@ const createWindow = () => {
       images: true,
       textAreasAreResizable: false,
       defaultEncoding: 'UTF-8',
-      offscreen: false
+      offscreen: false,
+      additionalArguments: [
+        '--disable-web-security',
+        '--ignore-gpu-blacklist',
+        '--disable-gpu-process-crash-limit',
+        '--max-active-webgl-contexts=32',
+        '--disable-webgl-context-limit'
+      ]
     }
   });
 
@@ -261,29 +281,51 @@ const createWindow = () => {
     }
   };
 
-  anubisView.webContents.on('render-process-gone', (event, details) => {
+  anubisView.webContents.addListener('render-process-gone', (event, details) => {
     console.log('Render process gone:', details.reason);
     handleCrash();
   });
 
-  anubisView.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+  anubisView.webContents.addListener('did-fail-load', (event, errorCode, errorDescription) => {
     console.log('Failed to load:', errorDescription);
     handleCrash();
   });
 
-  anubisView.webContents.on('did-finish-load', () => {
+  anubisView.webContents.addListener('did-finish-load', () => {
     crashRecoveryAttempts = 0;
     isLoading = false;
   });
 
-  setInterval(() => {
-    if (process.getSystemMemoryInfo().free < 1024 * 1024) {
+  const memoryManager = setInterval(() => {
+    const memInfo = process.getSystemMemoryInfo();
+    if (memInfo.free < 512 * 1024) {
       if (!isLoading) {
-        app.commandLine.appendSwitch('js-flags', '--gc-interval=1000');
-        anubisView.webContents.send('memory-pressure', true);
+        console.log('Critical memory pressure, performing minimal cleanup...');
+        if (global.gc) {
+          global.gc();
+        }
+        session.clearStorageData({
+          storages: ['cachestorage'],
+          quotas: ['temporary']
+        });
       }
     }
   }, 30000);
+
+  mainWindow.on('minimize', () => {
+    if (global.gc) {
+      global.gc();
+    }
+    session.clearStorageData({
+      storages: ['shadercache'],
+      quotas: ['temporary']
+    });
+  });
+
+  mainWindow.on('closed', () => {
+    clearInterval(memoryManager);
+    mainWindow = null;
+  });
 
   const updateViewBounds = () => {
     if (!mainWindow) return;
@@ -368,13 +410,13 @@ const createWindow = () => {
   });
 
   mainWindow.on('close', (event) => {
-    if (!isQuitting && process.platform === 'darwin') {
+    if (!isQuitting) {
       event.preventDefault();
       mainWindow?.hide();
     }
   });
 
-  mainWindow.webContents.on('render-process-gone', (event, details) => {
+  mainWindow.webContents.addListener('render-process-gone', (event, details) => {
     if (details.reason === 'crashed' || details.reason === 'oom') {
       app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
       mainWindow?.reload();
@@ -505,6 +547,8 @@ const createWindow = () => {
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f8f8f8'
     });
 
+    settingsWindow.setMaxListeners(20);
+
     if (mainWindow) {
       const parentBounds = mainWindow.getBounds();
       const settingsBounds = settingsWindow.getBounds();
@@ -522,6 +566,7 @@ const createWindow = () => {
     });
 
     settingsWindow.on('closed', () => {
+      revertSettings();
       settingsWindow = null;
     });
   });
@@ -563,6 +608,34 @@ const createWindow = () => {
       } else {
         nativeTheme.themeSource = 'system';
       }
+    }
+  });
+
+  const revertSettings = () => {
+    if (mainWindow) {
+      let titleBarColor = settings.titleBarColor;
+      if (!titleBarColor || titleBarColor === '#1a1a1a' || titleBarColor === '#f8f8f8') {
+        titleBarColor = settings.theme === 'dark' || 
+          (settings.theme === 'system' && nativeTheme.shouldUseDarkColors) 
+          ? '#1a1a1a' : '#f8f8f8';
+      }
+      
+      mainWindow.setBackgroundColor(titleBarColor);
+      mainWindow.webContents.send('update-colors', titleBarColor);
+
+      if (settings.theme === 'dark') { nativeTheme.themeSource = 'dark'; }
+      else if (settings.theme === 'light') { nativeTheme.themeSource = 'light'; } 
+      else { nativeTheme.themeSource = 'system'; }
+
+      app.commandLine.appendSwitch('force-max-fps', (settings.fps || 60).toString());
+    }
+  };
+
+  ipcMain.on('close-settings', () => {
+    if (settingsWindow) {
+      revertSettings();
+      settingsWindow.close();
+      settingsWindow = null;
     }
   });
 
@@ -727,6 +800,8 @@ const createWindow = () => {
     const view = externalTabs.get(tabId);
     if (view) {
       mainWindow?.removeBrowserView(view);
+      view.webContents.removeAllListeners();
+      view.webContents.close();
       externalTabs.delete(tabId);
       activeExternalTab = null;
       mainWindow?.webContents.send('external-tab-closed', tabId);
@@ -750,8 +825,8 @@ const createWindow = () => {
   });
 
   const handleDiscordLink = (url: string) => {
-    shell.openExternal(url).catch((error) => {
-      console.error('fwiled to open URL:', error);
+    shell.openExternal(url).catch((error: Error) => {
+      console.error('Failed to open URL:', error);
     });
   };
 
@@ -771,6 +846,77 @@ const createWindow = () => {
       mainWindow.webContents.send('fullscreen-changed', false);
     }
   });
+
+  anubisView.webContents.addListener('destroyed', () => {
+    console.log('WebContents destroyed, attempting recovery...');
+    try {
+      app.commandLine.appendSwitch('gpu-rasterization-reset');
+      app.commandLine.appendSwitch('ignore-gpu-blocklist');
+      app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
+      
+      setTimeout(() => {
+        anubisView?.webContents.reload();
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to recover from crash:', error);
+    }
+  });
+
+  process.on('child-process-gone', (event, details) => {
+    if (details.type === 'GPU') {
+      console.log('GPU process gone, reason:', details.reason);
+      app.commandLine.appendSwitch('force-gpu-mem-available-mb', '16384');
+    }
+  });
+
+  if (process.env.NODE_ENV === 'production') {
+    autoUpdater.autoDownload = true;
+    autoUpdater.allowDowngrade = false;
+
+    const checkForUpdates = async () => {
+      try {
+        await autoUpdater.checkForUpdates();
+      } catch (error) {
+        console.error('Failed to check for updates:', error);
+      }
+    };
+
+    setInterval(checkForUpdates, 30 * 60 * 1000);
+    
+    void checkForUpdates();
+
+    let updateDownloaded = false;
+
+    autoUpdater.on('update-available', (info: UpdateInfo) => {
+      console.log('Update available:', info.version);
+      mainWindow?.webContents.send('update-available');
+    });
+
+    autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
+      console.log('Update downloaded:', info.version);
+      updateDownloaded = true;
+      mainWindow?.webContents.send('update-downloaded');
+    });
+
+    autoUpdater.on('error', (err: Error) => {
+      console.error('Update error:', err);
+      mainWindow?.webContents.send('update-error', err.message);
+    });
+
+    ipcMain.on('check-for-updates', () => {
+      void checkForUpdates();
+    });
+
+    ipcMain.on('install-update', () => {
+      if (updateDownloaded) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+
+    ipcMain.handle('get-update-status', () => {
+      return updateDownloaded;
+    });
+  }
 };
 
 app.whenReady().then(() => {
@@ -782,7 +928,12 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  for (const [id, view] of externalTabs.entries()) {
+    view.webContents.removeAllListeners();
+    view.webContents.close();
+    externalTabs.delete(id);
+  }
+  app.quit();
 });
 
 app.on('will-quit', () => {
