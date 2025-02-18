@@ -11,8 +11,6 @@
     "build:mac": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --mac",
     "build:linux": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --linux",
     "build:all": "tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build -mwl",
-    "generate-cert": "electron-builder create-self-signed-cert -p anubisrp",
-    "build:signed": "npm run generate-cert && tsc && copyfiles -u 1 \"src/**/*.html\" dist/ && electron-builder build --win",
     "dev": "tsc-watch --onSuccess \"electron .\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -34,8 +32,6 @@
   "build": {
     "appId": "com.anubisrp.app",
     "productName": "AnubisRP",
-    "asar": true,
-    "asarUnpack": ["images/*"],
     "directories": {
       "output": "build",
       "buildResources": "images"
@@ -61,10 +57,7 @@
         }
       ],
       "icon": "images/icon.ico",
-      "artifactName": "AnubisRP_Setup_v${version}.${ext}",
-      "certificateFile": "anubisrp.pfx",
-      "verifyUpdateCodeSignature": false,
-      "signAndEditExecutable": true
+      "artifactName": "AnubisRP_Setup_v${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
