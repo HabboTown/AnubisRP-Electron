@@ -490,7 +490,7 @@
         <div class="settings-title">Settings</div>
         <div style="flex: 1"></div>
         <div class="window-controls">
-            <button class="window-control-button close" onclick="window.electronAPI.goBack()">
+            <button class="window-control-button close" onclick="window.electronAPI.closeSettings()">
                 <span class="material-symbols-rounded">close</span>
             </button>
         </div>
@@ -758,13 +758,13 @@
 
             const onAvailable = (info) => {
                 isCheckingForUpdates = false;
-                status.textContent = `Update Available (${info.version})`;
+                status.textContent = 'Update Available';
                 status.className = 'version-status';
                 button.classList.remove('checking');
                 button.innerHTML = `
                     <span class="button-content">
-                        <span class="material-symbols-rounded">download</span>
-                        <span class="button-text">Downloading...</span>
+                        <span class="material-symbols-rounded update-icon">sync</span>
+                        <span class="button-text">Update Available</span>
                     </span>
                 `;
                 window.electronAPI.removeListener('update-not-available', onNotAvailable);
@@ -780,9 +780,10 @@
                 button.innerHTML = `
                     <span class="button-content">
                         <span class="material-symbols-rounded update-icon">sync</span>
-                        <span class="button-text">Try Again</span>
+                        <span class="button-text">Check for Updates</span>
                     </span>
                 `;
+                console.error('Update check error:', error);
                 window.electronAPI.removeListener('update-not-available', onNotAvailable);
                 window.electronAPI.removeListener('update-available', onAvailable);
                 window.electronAPI.removeListener('update-error', onError);
@@ -820,12 +821,12 @@
             const status = document.querySelector('.version-status');
             const button = document.querySelector('.check-updates-button');
             
-            status.textContent = `Update Available (${info.version})`;
+            status.textContent = 'Update Available';
             status.className = 'version-status';
             button.innerHTML = `
                 <span class="button-content">
-                    <span class="material-symbols-rounded">download</span>
-                    <span class="button-text">Downloading...</span>
+                    <span class="material-symbols-rounded update-icon">sync</span>
+                    <span class="button-text">Update Available</span>
                 </span>
             `;
         });
@@ -856,7 +857,7 @@
             button.innerHTML = `
                 <span class="button-content">
                     <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Try Again</span>
+                    <span class="button-text">Check for Updates</span>
                 </span>
             `;
             isCheckingForUpdates = false;
@@ -883,7 +884,11 @@
             versionNumber.textContent = `v${version}`;
         });
 
-        document.querySelector('.close-button').addEventListener('click', () => {
+        window.electronAPI.onUpdateColors((color) => {
+            updateAccentColor(color);
+        });
+
+        document.querySelector('.window-control-button.close').addEventListener('click', () => {
             window.electronAPI.closeSettings();
         });
     </script>

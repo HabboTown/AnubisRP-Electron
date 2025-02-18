@@ -1,5 +1,0 @@
-checkForUpdates: () => ipcRenderer.send('check-for-updates'),
-onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
-onUpdateError: (callback) => ipcRenderer.on('update-error', callback),
-onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
-getAppVersion: () => ipcRenderer.invoke('get-app-version'), 

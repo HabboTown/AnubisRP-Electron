@@ -863,6 +863,14 @@ const createWindow = () => {
   let updateDownloaded = false;
   let isCheckingForUpdates = false;
 
+  if (process.env.NODE_ENV === 'production') {
+    autoUpdater.autoDownload = true;
+    autoUpdater.allowDowngrade = false;
+    const log = require('electron-log');
+    autoUpdater.logger = log;
+    log.transports.file.level = 'debug';
+  }
+
   const handleUpdateCheck = async () => {
     if (!mainWindow) return;
     if (isCheckingForUpdates) {
@@ -885,11 +893,31 @@ const createWindow = () => {
         return;
       }
 
-      const result = await autoUpdater.checkForUpdates();
+      autoUpdater.autoDownload = true;
+      autoUpdater.allowDowngrade = false;
+      const feedURL = {
+        provider: 'github' as const,
+        owner: process.env.GITHUB_USERNAME || 'Hxmada',
+        repo: 'AnubisRP-Electron',
+        token: process.env.GH_TOKEN
+      };
+
+      console.log('Setting feed URL:', { ...feedURL, token: '***' });
+      autoUpdater.setFeedURL(feedURL);
+      const updateCheckPromise = autoUpdater.checkForUpdates();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Update check timed out')), 30000);
+      });
+
+      const result = await Promise.race([updateCheckPromise, timeoutPromise]);
+      
       if (!result) {
-        console.log('No update check result, assuming latest version');
+        throw new Error('No update check result received');
+      }
+
+      console.log('Update check completed successfully');
+      if (mainWindow) {
         mainWindow.webContents.send('update-not-available');
-        isCheckingForUpdates = false;
       }
     } catch (error: any) {
       console.error('Update check error:', error);
@@ -897,15 +925,10 @@ const createWindow = () => {
       if (mainWindow) {
         mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
       }
+    } finally {
+      isCheckingForUpdates = false;
     }
   };
-
-  autoUpdater.setFeedURL({
-    provider: 'github',
-    owner: process.env.GITHUB_USERNAME || 'Hxmada',
-    repo: 'AnubisRP-Electron',
-    token: process.env.GH_TOKEN
-  });
 
   autoUpdater.on('checking-for-update', () => {
     isCheckingForUpdates = true;

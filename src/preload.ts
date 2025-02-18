@@ -90,4 +90,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   installUpdate: () => ipcRenderer.send('install-update'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
   closeSettings: () => ipcRenderer.send('close-settings'),
+  removeListener: (channel: string, listener: (...args: any[]) => void) => {
+    ipcRenderer.removeListener(channel, listener);
+  }
 }); 
