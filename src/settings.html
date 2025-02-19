@@ -145,6 +145,12 @@
             letter-spacing: 0.5px;
         }
 
+        .setting-description {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
         .setting-item {
             display: flex;
             align-items: center;
@@ -259,54 +265,6 @@
         input:checked + .toggle-slider:before {
             transform: translateX(16px);
             background-color: var(--text-color);
-        }
-
-        .save-button {
-            background: var(--title-bar-color);
-            color: var(--title-text-color);
-            border: 1px solid var(--title-hover-color);
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            margin-top: 12px;
-            width: 100%;
-            opacity: 0.8;
-        }
-
-        .save-button.has-changes {
-            opacity: 1;
-            border-color: var(--title-text-color);
-        }
-
-        .save-button:hover {
-            background: var(--title-hover-color);
-        }
-
-        .save-button:active {
-            transform: scale(0.98);
-        }
-
-        .material-symbols-rounded {
-            font-family: 'Material Symbols Rounded';
-            font-weight: 300;
-            font-style: normal;
-            font-size: 14px;
-            line-height: 1;
-            letter-spacing: normal;
-            text-transform: none;
-            white-space: nowrap;
-            word-wrap: normal;
-            direction: ltr;
-            -webkit-font-smoothing: antialiased;
-            -webkit-font-feature-settings: 'liga';
-            font-variation-settings: 
-                'FILL' 0,
-                'wght' 300,
-                'GRAD' 0,
-                'opsz' 20;
         }
 
         .setting-item.color-item {
@@ -482,6 +440,81 @@
             50% { opacity: 1; }
             100% { opacity: 0.6; }
         }
+
+        .save-button {
+            background: var(--title-bar-color, var(--background-color));
+            color: var(--text-color);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 12px;
+            width: calc(100% - 24px);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.1),
+                0 2px 4px rgba(0, 0, 0, 0.1),
+                0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+
+        .save-button:not(.has-changes) {
+            opacity: 0.7;
+            background: var(--card-bg);
+        }
+
+        .save-button.has-changes {
+            opacity: 1;
+            background: var(--title-bar-color, var(--background-color));
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.15),
+                0 4px 6px rgba(0, 0, 0, 0.12),
+                0 2px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .save-button:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+            box-shadow: 
+                inset 0 1px 2px rgba(255, 255, 255, 0.2),
+                0 6px 8px rgba(0, 0, 0, 0.15),
+                0 3px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .save-button:active {
+            transform: translateY(0);
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.1),
+                0 2px 4px rgba(0, 0, 0, 0.1),
+                0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+
+        .save-button:not(.has-changes):hover {
+            background: var(--input-bg);
+            transform: none;
+            box-shadow: 
+                inset 0 1px 1px rgba(255, 255, 255, 0.1),
+                0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .save-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .save-button:hover::before {
+            opacity: 1;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,300,0,0" rel="stylesheet" />
 </head>
@@ -490,7 +523,7 @@
         <div class="settings-title">Settings</div>
         <div style="flex: 1"></div>
         <div class="window-controls">
-            <button class="window-control-button close" onclick="window.electronAPI.closeSettings()">
+            <button class="window-control-button close" onclick="window.electronAPI.closeSettings()" title="Close">
                 <span class="material-symbols-rounded">close</span>
             </button>
         </div>
@@ -499,74 +532,61 @@
         <div class="settings-section">
             <h2>Appearance</h2>
             <div class="setting-item">
-                <span class="setting-label">Theme</span>
-                <select class="setting-input" id="theme">
+                <div class="setting-label">Theme</div>
+                <select id="theme" class="setting-input" onchange="previewChanges()">
                     <option value="system">System</option>
-                    <option value="dark">Dark</option>
                     <option value="light">Light</option>
+                    <option value="dark">Dark</option>
                 </select>
             </div>
             <div class="setting-item color-item">
-                <span class="setting-label">Title Bar Color</span>
+                <div class="setting-label">Title Bar Color</div>
                 <div class="color-controls">
-                    <input type="color" class="setting-input" id="titleBarColor">
+                    <input type="color" id="titleBarColor" class="setting-input" onchange="previewChanges()">
                     <button class="revert-button" onclick="revertColor()">Reset</button>
                 </div>
             </div>
         </div>
 
         <div class="settings-section">
-            <h2>Window</h2>
+            <h2>Performance</h2>
             <div class="setting-item">
-                <span class="setting-label">Start in Full Screen</span>
+                <select id="performanceMode" class="setting-input" onchange="previewChanges()">
+                    <option value="optimal">Optimal Power</option>
+                    <option value="maximum">Maximum Power</option>
+                </select>
+            </div>
+            <div class="setting-description">
+                Note: Changing performance mode will restart the application.
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h2>Startup</h2>
+            <div class="setting-item">
+                <div class="setting-label">Start in Fullscreen</div>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="startFullscreen">
+                    <input type="checkbox" id="startFullscreen" onchange="previewChanges()">
                     <span class="toggle-slider"></span>
                 </label>
             </div>
-            <div class="setting-item">
-                <span class="setting-label">Frame Rate</span>
-                <div class="fps-controls">
-                    <input type="range" class="setting-input fps-slider" id="fps" min="20" max="400" step="1">
-                    <span class="fps-value">60 FPS</span>
-                </div>
-            </div>
         </div>
 
         <div class="settings-section">
-            <h2>APP Settings</h2>
+            <h2>Game URL</h2>
             <div class="setting-item">
-                <span class="setting-label">DefaultURL</span>
-                <input type="url" class="setting-input" id="gameUrl" placeholder="https://anubisrp.com">
+                <div class="setting-label">URL</div>
+                <input type="text" id="gameUrl" class="setting-input" onchange="previewChanges()" placeholder="https://anubisrp.com">
             </div>
         </div>
-
-        <div class="settings-section">
-            <h2>About</h2>
-            <div class="setting-item version-item">
-                <span class="setting-label">Version</span>
-                <div class="version-info">
-                    <span class="version-number">v1.2.0</span>
-                    <span class="version-status">-</span>
-                </div>
-            </div>
-            <button class="check-updates-button" onclick="checkForUpdates()">
-                <span class="button-content">
-                    <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Check for Updates</span>
-                </span>
-            </button>
-        </div>
-
-        <button class="save-button" onclick="saveSettings()">No Changes</button>
     </div>
+    <button class="save-button" onclick="saveChanges()">No Changes</button>
 
     <script>
         let originalSettings = {};
         let hasUnsavedChanges = false;
         const DEFAULT_DARK_COLOR = '#1a1a1a';
         const DEFAULT_LIGHT_COLOR = '#f8f8f8';
-        let isCheckingForUpdates = false;
 
         function getDefaultColor() {
             const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -631,9 +651,7 @@
             document.getElementById('titleBarColor').value = settings.titleBarColor || defaultColor;
             
             document.getElementById('startFullscreen').checked = settings.startFullscreen || false;
-            const fpsSlider = document.getElementById('fps');
-            fpsSlider.value = settings.fps || 60;
-            document.querySelector('.fps-value').textContent = `${fpsSlider.value} FPS`;
+            document.getElementById('performanceMode').value = settings.performanceMode || 'optimal';
             document.getElementById('gameUrl').value = settings.gameUrl || 'https://anubisrp.com';
             
             updateAccentColor(settings.titleBarColor || defaultColor);
@@ -690,7 +708,7 @@
                 theme: document.getElementById('theme').value,
                 titleBarColor: document.getElementById('titleBarColor').value,
                 startFullscreen: document.getElementById('startFullscreen').checked,
-                fps: parseInt(document.getElementById('fps').value),
+                performanceMode: document.getElementById('performanceMode').value,
                 gameUrl: document.getElementById('gameUrl').value
             };
         }
@@ -713,183 +731,26 @@
             window.electronAPI.previewSettings(previewSettings);
         }
 
-        function saveSettings() {
+        function saveChanges() {
             if (!hasUnsavedChanges) return;
             
-            const settings = getCurrentSettings();
-            window.electronAPI.updateSettings(settings);
-            originalSettings = { ...settings };
-            hasUnsavedChanges = false;
-            
-            const saveButton = document.querySelector('.save-button');
-            saveButton.classList.remove('has-changes');
-            saveButton.textContent = 'Saved!';
-            setTimeout(() => {
-                if (!hasUnsavedChanges) saveButton.textContent = 'No Changes';
-            }, 2000);
+            const currentSettings = getCurrentSettings();
+            window.electronAPI.updateSettings(currentSettings);
+            window.electronAPI.closeSettings();
         }
-
-        function checkForUpdates() {
-            if (isCheckingForUpdates) {
-                console.log('Already checking for updates');
-                return;
-            }
-            
-            const button = document.querySelector('.check-updates-button');
-            const status = document.querySelector('.version-status');
-            
-            button.classList.add('checking');
-            status.textContent = 'Checking...';
-            status.className = 'version-status checking';
-            isCheckingForUpdates = true;
-
-            const resetUpdateCheck = () => {
-                isCheckingForUpdates = false;
-                button.classList.remove('checking');
-                button.innerHTML = `
-                    <span class="button-content">
-                        <span class="material-symbols-rounded update-icon">sync</span>
-                        <span class="button-text">Check for Updates</span>
-                    </span>
-                `;
-            };
-
-            const cleanup = () => {
-                window.electronAPI.removeListener('update-not-available', onNotAvailable);
-                window.electronAPI.removeListener('update-available', onAvailable);
-                window.electronAPI.removeListener('update-error', onError);
-            };
-
-            const onNotAvailable = () => {
-                console.log('Update not available');
-                isCheckingForUpdates = false;
-                status.textContent = 'Latest';
-                status.className = 'version-status latest';
-                resetUpdateCheck();
-                cleanup();
-            };
-
-            const onAvailable = (info) => {
-                console.log('Update available:', info);
-                isCheckingForUpdates = false;
-                status.textContent = 'Update Available';
-                status.className = 'version-status';
-                button.classList.remove('checking');
-                button.innerHTML = `
-                    <span class="button-content">
-                        <span class="material-symbols-rounded update-icon">sync</span>
-                        <span class="button-text">Update Available</span>
-                    </span>
-                `;
-                cleanup();
-            };
-
-            const onError = (error) => {
-                console.error('Update check error:', error);
-                isCheckingForUpdates = false;
-                status.textContent = 'Check Failed';
-                status.className = 'version-status';
-                resetUpdateCheck();
-                cleanup();
-            };
-
-            window.electronAPI.onUpdateNotAvailable(onNotAvailable);
-            window.electronAPI.onUpdateAvailable(onAvailable);
-            window.electronAPI.onUpdateError(onError);
-
-            window.electronAPI.checkForUpdates();
-        }
-
-        window.electronAPI.getUpdateStatus().then(isUpdateDownloaded => {
-            const status = document.querySelector('.version-status');
-            if (isUpdateDownloaded) {
-                status.textContent = 'Update Ready';
-                status.className = 'version-status latest';
-            } else {
-                status.textContent = 'Latest';
-                status.className = 'version-status latest';
-            }
-        });
-
-        window.electronAPI.onCheckingForUpdate(() => {
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = 'Checking...';
-            status.className = 'version-status checking';
-            button.classList.add('checking');
-            isCheckingForUpdates = true;
-        });
-
-        window.electronAPI.onUpdateAvailable((info) => {
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = 'Update Available';
-            status.className = 'version-status';
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Update Available</span>
-                </span>
-            `;
-        });
-
-        window.electronAPI.onUpdateNotAvailable(() => {
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = 'Latest';
-            status.className = 'version-status latest';
-            button.classList.remove('checking');
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Check for Updates</span>
-                </span>
-            `;
-            isCheckingForUpdates = false;
-        });
-
-        window.electronAPI.onUpdateError(() => {
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = 'Check Failed';
-            status.className = 'version-status';
-            button.classList.remove('checking');
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded update-icon">sync</span>
-                    <span class="button-text">Check for Updates</span>
-                </span>
-            `;
-            isCheckingForUpdates = false;
-        });
-
-        window.electronAPI.onUpdateDownloaded(() => {
-            const status = document.querySelector('.version-status');
-            const button = document.querySelector('.check-updates-button');
-            
-            status.textContent = 'Update Ready';
-            status.className = 'version-status latest';
-            button.classList.remove('checking');
-            button.innerHTML = `
-                <span class="button-content">
-                    <span class="material-symbols-rounded">sync</span>
-                    <span class="button-text">Check for Updates</span>
-                </span>
-            `;
-            isCheckingForUpdates = false;
-        });
-
-        window.electronAPI.getAppVersion().then(version => {
-            const versionNumber = document.querySelector('.version-number');
-            versionNumber.textContent = `v${version}`;
-        });
 
         window.electronAPI.onUpdateColors((color) => {
-            updateAccentColor(color);
+            document.documentElement.style.setProperty('--dynamic-title-color', color);
+            const rgb = color.match(/^#([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+            if (rgb) {
+                const [r, g, b] = [parseInt(rgb[1], 16), parseInt(rgb[2], 16), parseInt(rgb[3], 16)];
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                const textColor = brightness > 128 ? '#2d2d2d' : '#ffffff';
+                const hoverColor = brightness > 128 ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.08)';
+                
+                document.documentElement.style.setProperty('--dynamic-text-color', textColor);
+                document.documentElement.style.setProperty('--dynamic-hover-color', hoverColor);
+            }
         });
 
         document.querySelector('.window-control-button.close').addEventListener('click', () => {

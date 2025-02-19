@@ -33,19 +33,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('external-link-data', handler);
   },
   openExternalLink: (url: string) => ipcRenderer.send('open-external-link', url),
-  toggleFullscreen: (isFullscreen: boolean) => ipcRenderer.send('toggle-fullscreen', isFullscreen),
-  onFullscreenChanged: (callback: (isFullscreen: boolean) => void) => {
-    const handler = (_event: any, isFullscreen: boolean) => callback(isFullscreen);
-    ipcRenderer.on('fullscreen-changed', handler);
-    return () => ipcRenderer.removeListener('fullscreen-changed', handler);
-  },
-  onExternalTabCreated: (callback: (data: { id: number, title: string }) => void) => {
-    const handler = (_event: any, data: { id: number, title: string }) => callback(data);
+  onExternalTabCreated: (callback: (tab: any) => void) => {
+    const handler = (_event: any, tab: any) => callback(tab);
     ipcRenderer.on('external-tab-created', handler);
     return () => ipcRenderer.removeListener('external-tab-created', handler);
   },
-  onExternalTabUpdated: (callback: (data: { id: number, title: string }) => void) => {
-    const handler = (_event: any, data: { id: number, title: string }) => callback(data);
+  onExternalTabUpdated: (callback: (tab: any) => void) => {
+    const handler = (_event: any, tab: any) => callback(tab);
     ipcRenderer.on('external-tab-updated', handler);
     return () => ipcRenderer.removeListener('external-tab-updated', handler);
   },
@@ -55,42 +49,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('external-tab-closed', handler);
   },
   closeExternalTab: (tabId: number) => ipcRenderer.send('close-external-tab', tabId),
-  switchToTab: (tabId: number | 'main') => ipcRenderer.send('switch-to-tab', tabId),
-  checkForUpdates: () => ipcRenderer.send('check-for-updates'),
-  onCheckingForUpdate: (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on('checking-for-update', handler);
-    return () => ipcRenderer.removeListener('checking-for-update', handler);
+  switchToTab: (tabId: string | number) => ipcRenderer.send('switch-to-tab', tabId),
+  onFullscreenChanged: (callback: (isFullscreen: boolean) => void) => {
+    const handler = (_event: any, isFullscreen: boolean) => callback(isFullscreen);
+    ipcRenderer.on('fullscreen-changed', handler);
+    return () => ipcRenderer.removeListener('fullscreen-changed', handler);
   },
-  onUpdateAvailable: (callback: (info: any) => void) => {
-    const handler = (_event: any, info: any) => callback(info);
-    ipcRenderer.on('update-available', handler);
-    return () => ipcRenderer.removeListener('update-available', handler);
+  zoomIn: () => ipcRenderer.send('zoom-in'),
+  zoomOut: () => ipcRenderer.send('zoom-out'),
+  zoomReset: () => ipcRenderer.send('zoom-reset'),
+  onZoomChanged: (callback: (zoomFactor: number) => void) => {
+    const handler = (_event: any, zoomFactor: number) => callback(zoomFactor);
+    ipcRenderer.on('zoom-changed', handler);
+    return () => ipcRenderer.removeListener('zoom-changed', handler);
   },
-  onUpdateNotAvailable: (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on('update-not-available', handler);
-    return () => ipcRenderer.removeListener('update-not-available', handler);
-  },
-  onUpdateError: (callback: (error: string) => void) => {
-    const handler = (_event: any, error: string) => callback(error);
-    ipcRenderer.on('update-error', handler);
-    return () => ipcRenderer.removeListener('update-error', handler);
-  },
-  onUpdateProgress: (callback: (progressObj: any) => void) => {
-    const handler = (_event: any, progressObj: any) => callback(progressObj);
-    ipcRenderer.on('update-progress', handler);
-    return () => ipcRenderer.removeListener('update-progress', handler);
-  },
-  onUpdateDownloaded: (callback: (info: any) => void) => {
-    const handler = (_event: any, info: any) => callback(info);
-    ipcRenderer.on('update-downloaded', handler);
-    return () => ipcRenderer.removeListener('update-downloaded', handler);
-  },
-  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
-  installUpdate: () => ipcRenderer.send('install-update'),
-  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
-  removeListener: (channel: string, listener: (...args: any[]) => void) => {
-    ipcRenderer.removeListener(channel, listener);
-  }
+  toggleFullscreen: (isFullscreen: boolean) => ipcRenderer.send('toggle-fullscreen', isFullscreen)
 }); 

@@ -5,57 +5,39 @@
         :root {
             --background-color: #1a1a1a;
             --text-color: #ffffff;
-            --hover-color: rgba(255, 255, 255, 0.08);
+            --hover-color: rgba(255, 255, 255, 0.1);
             --accent-color: #d4af37;
             --button-hover: rgba(212, 175, 55, 0.15);
-            --tooltip-bg: rgba(0, 0, 0, 0.85);
+            --tooltip-bg: rgba(0, 0, 0, 0.9);
             --loading-color: rgb(0, 0, 0);
-            --titlebar-transition: transform 0.3s ease, opacity 0.3s ease;
+            --titlebar-transition: all 0.15s ease;
+            --zoom-transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --border-color: rgba(255, 255, 255, 0.1);
         }
 
         @media (prefers-color-scheme: light) {
             :root {
                 --background-color: #f8f8f8;
                 --text-color: #2d2d2d;
-                --hover-color: rgba(0, 0, 0, 0.05);
+                --hover-color: rgba(0, 0, 0, 0.06);
                 --accent-color: #d4af37;
                 --button-hover: rgba(212, 175, 55, 0.1);
-                --tooltip-bg: rgba(45, 45, 45, 0.95);
+                --tooltip-bg: rgba(45, 45, 45, 0.98);
                 --loading-color: rgb(200, 200, 200);
+                --border-color: rgba(0, 0, 0, 0.1);
             }
         }
 
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'gg sans', 'Segoe UI', sans-serif;
             background: var(--background-color);
             user-select: none;
             overflow: hidden;
             will-change: transform;
             transform: translateZ(0);
             backface-visibility: hidden;
-        }
-
-        body.fullscreen .titlebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 9999;
-            background: var(--background-color);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        body.fullscreen .browserView {
-            margin-top: 32px !important;
-            height: calc(100vh - 32px) !important;
-        }
-
-        body.fullscreen::before {
-            display: none;
         }
 
         .titlebar {
@@ -68,8 +50,9 @@
             -webkit-app-region: drag;
             padding: 0;
             position: relative;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
             z-index: 1000;
+            font-size: 13px;
         }
 
         .title {
@@ -79,32 +62,50 @@
             justify-content: center;
             opacity: 0.9;
             font-weight: 500;
-            letter-spacing: 0.3px;
-            gap: 8px;
+            letter-spacing: 0.2px;
+            gap: 6px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         .title-icon {
-            width: 20px;
-            height: 20px;
-
+            width: 16px;
+            height: 16px;
             object-fit: cover;
-            border-radius: 4px;
+            border-radius: 3px;
             image-rendering: auto;
             will-change: transform;
             transform: translateZ(0);
+        }
+
+        .utility-controls {
+            display: flex;
+            -webkit-app-region: no-drag;
+            height: 32px;
+            gap: 0;
+            margin-left: 4px;
+            border-right: 1px solid var(--border-color);
+            padding-right: 4px;
         }
 
         .window-controls {
             display: flex;
             -webkit-app-region: no-drag;
             height: 32px;
+            margin-left: auto;
+            border-radius: 4px;
         }
 
-        .utility-controls {
+        .control-group {
             display: flex;
-            -webkit-app-region: no-drag;
-            margin-left: 2px;
+            align-items: center;
             height: 32px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .control-group:last-child {
+            border-right: none;
         }
 
         .control-button, .window-control-button {
@@ -118,23 +119,19 @@
             background: transparent;
             border: none;
             outline: none;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            opacity: 0.85;
+            transition: var(--titlebar-transition);
+            opacity: 0.7;
             position: relative;
             -webkit-app-region: no-drag;
             will-change: transform, opacity;
             pointer-events: auto;
             user-select: none;
+            padding: 0;
         }
 
-        .control-button:focus, .window-control-button:focus {
-            outline: none;
-            box-shadow: none;
-        }
-
-        .control-button:hover {
-            background: var(--hover-color);
+        .control-button:hover, .window-control-button:hover {
             opacity: 1;
+            background: var(--hover-color);
         }
 
         .control-button:active {
@@ -146,68 +143,11 @@
             opacity: 1;
         }
 
-        .control-button.refresh:active .material-symbols-rounded {
-            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .control-button.clear:active .material-symbols-rounded,
-        .control-button.cookies:active .material-symbols-rounded {
-            animation: bounce 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes bounce {
-            0% { transform: scale(1); }
-            40% { transform: scale(0.85); }
-            70% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .control-button.refresh,
-        .control-button.clear,
-        .control-button.cookies,
-        .control-button.settings,
-        .control-button.fullscreen {
-            color: var(--text-color);
-        }
-
-        .window-control-button {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            color: var(--text-color);
-            background: transparent;
-            border: none;
-            outline: none;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            opacity: 0.85;
-            position: relative;
-            -webkit-app-region: no-drag;
-            will-change: transform, opacity;
-        }
-
-        .window-control-button:hover {
-            background: var(--hover-color);
-            opacity: 1;
-        }
-
-        .window-control-button.close:hover {
-            background: #dc3545;
-            color: white;
-        }
-
         .material-symbols-rounded {
             font-family: 'Material Symbols Rounded';
             font-weight: 300;
             font-style: normal;
-            font-size: 16px !important;
+            font-size: 15px !important;
             line-height: 1;
             letter-spacing: normal;
             text-transform: none;
@@ -224,25 +164,12 @@
         }
 
         .window-control-button .material-symbols-rounded {
-            font-size: 12px;
-            font-weight: 400;
+            font-size: 14px;
         }
 
-        .control-button::after,
-        .window-control-button::after,
-        button[title]:hover::after,
-        button[title]:hover::before {
-            display: none;
-        }
-
-        .control-button {
-            height: 32px;
-            width: 32px;
-        }
-
-        .window-control-button {
-            width: 38px;
-            height: 32px;
+        .window-control-button.close:hover {
+            background: #e81123;
+            color: white;
         }
 
         .loading-bar {
@@ -250,7 +177,7 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 2px;
+            height: 1px;
             background: transparent;
             transform-origin: left;
             transition: transform 0.2s ease-out;
@@ -265,7 +192,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: var(--loading-color);
+            background: var(--accent-color);
             opacity: 0.8;
             transform: scaleX(0);
             transform-origin: left;
@@ -281,34 +208,12 @@
             transform: scaleX(var(--progress, 0));
         }
 
-        .loading-bar.finishing {
-            animation: fadeOut 0.2s ease-out forwards;
-        }
-
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
-        }
-
-        .title-text {
-            cursor: default;
-            transition: opacity 0.2s ease;
-        }
-
-        .title-text.clickable {
-            cursor: pointer;
-        }
-
-        .title-text.clickable:hover {
-            opacity: 0.8;
-        }
-
         .tabs-container {
             display: flex;
             align-items: center;
             gap: 4px;
             margin-left: 8px;
-            height: 24px;
+            height: 22px;
             opacity: 0;
             transition: opacity 0.2s ease;
             -webkit-app-region: no-drag;
@@ -323,12 +228,12 @@
             align-items: center;
             gap: 6px;
             padding: 0 8px;
-            height: 24px;
+            height: 22px;
             background: var(--hover-color);
-            border-radius: 4px;
+            border-radius: 3px;
             font-size: 11px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: var(--titlebar-transition);
             max-width: 160px;
             min-width: 100px;
             position: relative;
@@ -353,17 +258,16 @@
         }
 
         .tab-close {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
             opacity: 0;
-            transition: all 0.2s ease;
+            transition: var(--titlebar-transition);
             background: var(--hover-color);
             cursor: pointer;
-            margin-left: 4px;
         }
 
         .tab:hover .tab-close {
@@ -375,8 +279,74 @@
         }
 
         .tab-close .material-symbols-rounded {
-            font-size: 14px;
+            font-size: 12px;
             pointer-events: none;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            height: 32px;
+        }
+
+        .control-button.zoom-button {
+            width: 32px;
+            height: 32px;
+            color: var(--text-color);
+            transition: var(--zoom-transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0;
+        }
+
+        .control-button.zoom-button.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+
+        .control-button.zoom-button:active {
+            transform: scale(0.92);
+        }
+
+        .control-button.zoom-reset {
+            display: none;
+            width: auto;
+            min-width: 46px;
+            padding: 0 8px;
+            background: var(--accent-color);
+            color: #000;
+            opacity: 0.9;
+            font-weight: 500;
+            font-size: 11px;
+            border-radius: 3px;
+            margin: 0 4px;
+            height: 20px;
+        }
+
+        .control-button.zoom-reset.visible {
+            display: inline-flex;
+        }
+
+        .control-button.zoom-reset:hover {
+            opacity: 1;
+            background: var(--accent-color);
+        }
+
+        @font-face {
+            font-family: 'gg sans';
+            src: url('../fonts/ggsans-Normal.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: 'gg sans';
+            src: url('../fonts/ggsans-Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-style: normal;
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,300,0,0" rel="stylesheet" />
@@ -403,23 +373,36 @@
             <div class="tabs-container" id="tabsContainer"></div>
         </div>
         <div class="window-controls">
-            <button class="control-button fullscreen" title="Toggle Fullscreen" onclick="toggleFullscreen()" tabindex="-1">
-                <span class="material-symbols-rounded" id="fullscreen-icon">fullscreen</span>
-            </button>
-            <button class="window-control-button" title="Minimize" onclick="window.electronAPI.minimizeWindow()" tabindex="-1">
-                <span class="material-symbols-rounded">remove</span>
-            </button>
-            <button class="window-control-button" title="Maximize" onclick="window.electronAPI.maximizeWindow()" tabindex="-1">
-                <span class="material-symbols-rounded">crop_square</span>
-            </button>
-            <button class="window-control-button close" title="Close" onclick="window.electronAPI.closeWindow()" tabindex="-1">
-                <span class="material-symbols-rounded">close</span>
-            </button>
+            <div class="control-group zoom-controls">
+                <button class="control-button zoom-reset zoom-button" title="Reset Zoom" onclick="window.electronAPI.zoomReset()" tabindex="-1">
+                    RESET
+                </button>
+                <button class="control-button zoom-in zoom-button" title="Zoom In" onclick="window.electronAPI.zoomIn()" tabindex="-1">
+                    <span class="material-symbols-rounded">add</span>
+                </button>
+                <button class="control-button zoom-out zoom-button" title="Zoom Out" onclick="window.electronAPI.zoomOut()" tabindex="-1">
+                    <span class="material-symbols-rounded">remove</span>
+                </button>
+            </div>
+            <div class="control-group">
+                <button class="control-button fullscreen" title="Toggle Fullscreen" onclick="toggleFullscreen()" tabindex="-1">
+                    <span class="material-symbols-rounded" id="fullscreen-icon">fullscreen</span>
+                </button>
+            </div>
+            <div class="control-group">
+                <button class="window-control-button" title="Minimize" onclick="window.electronAPI.minimizeWindow()" tabindex="-1">
+                    <span class="material-symbols-rounded">remove</span>
+                </button>
+                <button class="window-control-button" title="Maximize" onclick="window.electronAPI.maximizeWindow()" tabindex="-1">
+                    <span class="material-symbols-rounded">crop_square</span>
+                </button>
+                <button class="window-control-button close" title="Close" onclick="window.electronAPI.closeWindow()" tabindex="-1">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
         </div>
     </div>
     <div class="loading-bar" id="loadingBar"></div>
-
-    <iframe id="updateIndicator" src="update-indicator.html" style="border: none; position: fixed; bottom: 0; right: 0; width: 300px; height: 100px; pointer-events: none; z-index: 1000;"></iframe>
 
     <script>
         const loadingBar = document.querySelector('.loading-bar');
@@ -433,6 +416,29 @@
                 setTimeout(() => {
                     loadingBar.classList.remove('loading', 'finishing');
                 }, 200);
+            }
+        });
+
+        window.electronAPI.onZoomChanged((zoomFactor) => {
+            const zoomPercentage = Math.round(zoomFactor * 100);
+            const resetButton = document.querySelector('.zoom-reset');
+            
+            document.querySelectorAll('.zoom-button').forEach(button => {
+                button.classList.remove('disabled');
+            });
+            
+            if (zoomPercentage <= 30) {
+                document.querySelector('.zoom-out').classList.add('disabled');
+            }
+            if (zoomPercentage >= 300) {
+                document.querySelector('.zoom-in').classList.add('disabled');
+            }
+            
+            if (zoomPercentage !== 100) {
+                resetButton.classList.add('visible');
+                resetButton.title = `Reset Zoom (Current: ${zoomPercentage}%)`;
+            } else {
+                resetButton.classList.remove('visible');
             }
         });
 

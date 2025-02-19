@@ -1,6 +1,6 @@
 {
   "name": "anubisrp",
-  "version": "1.9.4",
+  "version": "2.0.0",
   "description": "AnubisRP Browser",
   "main": "dist/main.js",
   "scripts": {
@@ -74,7 +74,7 @@
       "installerIcon": "images/icon.ico",
       "uninstallerIcon": "images/icon.ico",
       "installerHeaderIcon": "images/icon.ico",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": true
     },
     "mac": {
       "target": "dmg",
