@@ -40,28 +40,17 @@ let settings = {
 
 const applyPerformanceSettings = (mode: string) => {
     app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
-    app.commandLine.appendSwitch('disable-gpu-vsync');
+    app.commandLine.appendSwitch('enable-webgl');
     
     if (mode === 'maximum') {
-        app.commandLine.appendSwitch('use-angle', 'gl');
-        app.commandLine.appendSwitch('use-gl', 'desktop');
-        app.commandLine.appendSwitch('enable-webgl');
-        app.commandLine.appendSwitch('enable-webgl2');
+        app.commandLine.appendSwitch('enable-gpu-rasterization');
+        app.commandLine.appendSwitch('enable-zero-copy');
+        if (process.platform === 'win32') {
+            app.commandLine.appendSwitch('use-angle', 'd3d11');
+        }
         const totalMemory = process.getSystemMemoryInfo().total;
         const gpuMemory = Math.min(Math.floor(totalMemory * 0.25), 4096);
         app.commandLine.appendSwitch('force-gpu-mem-available-mb', gpuMemory.toString());
-        app.commandLine.appendSwitch('enable-gpu-rasterization');
-        app.commandLine.appendSwitch('enable-zero-copy');
-        app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
-        app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
-        app.commandLine.appendSwitch('enable-begin-frame-scheduling');
-        
-        if (process.platform === 'win32') {
-            app.commandLine.appendSwitch('use-angle', 'd3d11');
-            app.commandLine.appendSwitch('enable-d3d11-compositor');
-        }
-        app.commandLine.appendSwitch('enable-javascript-harmony');
-        app.commandLine.appendSwitch('enable-precise-memory-info');
     } else { // optimal
         const isHighEndPC = process.getSystemMemoryInfo().total > 8 * 1024 * 1024;
         if (isHighEndPC) {
@@ -71,12 +60,9 @@ const applyPerformanceSettings = (mode: string) => {
                 app.commandLine.appendSwitch('use-angle', 'd3d11');
             }
         }
-        app.commandLine.appendSwitch('enable-webgl');
         app.commandLine.appendSwitch('force-gpu-mem-available-mb', '2048');
     }
-    app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
-    app.commandLine.appendSwitch('enable-gpu-command-logging');
-    app.commandLine.appendSwitch('gpu-no-context-lost');
+    app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
 };
 
 const loadSettings = () => {
