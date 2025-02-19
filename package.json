@@ -1,6 +1,6 @@
 {
   "name": "anubisrp",
-  "version": "1.8.0",
+  "version": "1.9.2",
   "description": "AnubisRP Browser",
   "main": "dist/main.js",
   "scripts": {
@@ -34,7 +34,7 @@
     "productName": "AnubisRP",
     "publish": {
       "provider": "github",
-      "owner": "${env.GITHUB_USERNAME}",
+      "owner": "Hxmada",
       "repo": "AnubisRP-Electron",
       "private": false,
       "releaseType": "release"

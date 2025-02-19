@@ -913,6 +913,28 @@ const createWindow = () => {
     const log = require('electron-log');
     autoUpdater.logger = log;
     log.transports.file.level = 'debug';
+    
+    const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
+    if (!fs.existsSync(updateConfigPath)) {
+      const updateConfig = `provider: github
+                            owner: Hxmada
+                            repo: AnubisRP-Electron
+                            updaterCacheDirName: anubisrp-updater`;
+      
+      try {
+        fs.writeFileSync(updateConfigPath, updateConfig, 'utf8');
+      } catch (error) {
+        console.error('Failed to create app-update.yml:', error);
+      }
+    }
+
+    autoUpdater.setFeedURL({
+      provider: 'github' as const,
+      owner: 'Hxmada',
+      repo: 'AnubisRP-Electron',
+      private: false,
+      releaseType: 'release'
+    });
   }
 
   const handleUpdateCheck = async (manual = false) => {
@@ -937,38 +959,19 @@ const createWindow = () => {
       isCheckingForUpdates = true;
       isManualCheck = manual;
       mainWindow.webContents.send('checking-for-update');
-
-      const feedURL = {
-        provider: 'github' as const,
-        owner: 'Hxmada',
-        repo: 'AnubisRP-Electron',
-        token: process.env.GH_TOKEN,
-        private: false
-      };
-
-      console.log('Setting feed URL:', { ...feedURL, token: '***' });
       
-      try {
-        autoUpdater.setFeedURL(feedURL);
-        if (process.env.NODE_ENV !== 'production' && manual) {
-          console.log('Forcing update check in development mode');
-          autoUpdater.forceDevUpdateConfig = true;
-        }
-        await autoUpdater.checkForUpdates();
-      } catch (error: any) {
-        console.error('Update check failed:', error);
-        isCheckingForUpdates = false;
-        isManualCheck = false;
-        if (mainWindow) {
-          mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
-        }
+      if (process.env.NODE_ENV !== 'production' && manual) {
+        console.log('Forcing update check in development mode');
+        autoUpdater.forceDevUpdateConfig = true;
       }
+      
+      await autoUpdater.checkForUpdates();
     } catch (error: any) {
-      console.error('Update check error:', error);
+      console.error('Update check failed:', error);
       isCheckingForUpdates = false;
       isManualCheck = false;
       if (mainWindow) {
-        mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
+        mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
       }
     }
   };
@@ -1048,6 +1051,12 @@ const createWindow = () => {
 
   ipcMain.handle('get-update-status', () => {
     return process.env.NODE_ENV === 'production' ? updateDownloaded : false;
+  });
+
+  ipcMain.on('install-update', () => {
+    if (updateDownloaded) {
+      autoUpdater.quitAndInstall(false, true);
+    }
   });
 
   anubisView.webContents.on('render-process-gone', async (event, details) => {
