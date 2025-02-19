@@ -83,14 +83,13 @@ const createWindow = () => {
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
   app.commandLine.appendSwitch('disable-site-isolation-trials');
-  app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer,NetworkServiceInProcess,QuicForceEnabled,BackForwardCache,NetworkQualityEstimator');
+  app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer,NetworkServiceInProcess,QuicForceEnabled,BackForwardCache,NetworkQualityEstimator,GpuRasterization');
   app.commandLine.appendSwitch('ignore-certificate-errors');
   app.commandLine.appendSwitch('enable-gpu-memory-buffer-compositor-resources');
   app.commandLine.appendSwitch('enable-hardware-overlays');
   app.commandLine.appendSwitch('enable-zero-copy');
   app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
-  app.commandLine.appendSwitch('force-gpu-mem-available-mb', '2048');
-  app.commandLine.appendSwitch('enable-unsafe-webgpu');
+  app.commandLine.appendSwitch('force-gpu-mem-available-mb', '4096');
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
   app.commandLine.appendSwitch('enable-oop-rasterization');
   app.commandLine.appendSwitch('enable-raw-draw');
@@ -98,26 +97,36 @@ const createWindow = () => {
   app.commandLine.appendSwitch('enable-parallel-downloading');
   app.commandLine.appendSwitch('enable-tcp-fast-open');
   app.commandLine.appendSwitch('enable-websocket-multiplexing');
-  app.commandLine.appendSwitch('disk-cache-size', '104857600');
+  app.commandLine.appendSwitch('disk-cache-size', '524288000');
   app.commandLine.appendSwitch('enable-gpu-shader-disk-cache');
   app.commandLine.appendSwitch('enable-gpu-shader-cache-for-drivers');
   app.commandLine.appendSwitch('enable-gpu-program-cache');
-  app.commandLine.appendSwitch('use-angle', 'gl');
+  app.commandLine.appendSwitch('use-angle', 'default');
   app.commandLine.appendSwitch('enable-accelerated-video-decode');
   app.commandLine.appendSwitch('enable-accelerated-mjpeg-decode');
   app.commandLine.appendSwitch('enable-accelerated-video');
   app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
   app.commandLine.appendSwitch('disable-gpu-vsync');
   app.commandLine.appendSwitch('disable-software-rasterizer');
-  app.commandLine.appendSwitch('max-active-webgl-contexts', '100');
-  app.commandLine.appendSwitch('disable-webgl-lose-context-on-memory-pressure');
-  app.commandLine.appendSwitch('disable-webgl-lose-context-on-gpu-reset');
+  app.commandLine.appendSwitch('max-active-webgl-contexts', '16');
   app.commandLine.appendSwitch('gpu-no-context-lost');
   app.commandLine.appendSwitch('disable-gl-drawing-for-tests', 'false');
   app.commandLine.appendSwitch('enable-gpu-rasterization');
   app.commandLine.appendSwitch('enable-webgl-draft-extensions');
   app.commandLine.appendSwitch('disable-gpu-driver-bug-workarounds');
   app.commandLine.appendSwitch('force-high-performance-gpu');
+  app.commandLine.appendSwitch('enable-webgl-developer-extensions');
+  app.commandLine.appendSwitch('enable-begin-frame-scheduling');
+  app.commandLine.appendSwitch('enable-drdc');
+  app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
+  app.commandLine.appendSwitch('enable-gpu-service-logging');
+  app.commandLine.appendSwitch('enable-webgl-image-chromium');
+  app.commandLine.appendSwitch('enable-webgl2-compute-context');
+  app.commandLine.appendSwitch('canvas-oop-rasterization');
+  app.commandLine.appendSwitch('disable-gpu-process-for-dx12-vulkan-info-collection');
+  app.commandLine.appendSwitch('enable-gpu-async-worker-context');
+  app.commandLine.appendSwitch('enable-webgl-draft-extensions');
+  app.commandLine.appendSwitch('use-gl', 'desktop');
 
   const anubisView = new BrowserView({
     webPreferences: {
@@ -139,19 +148,19 @@ const createWindow = () => {
       defaultEncoding: 'UTF-8',
       offscreen: false,
       additionalArguments: [
-        '--ignore-gpu-blacklist',
+        '--ignore-gpu-blocklist',
         '--disable-gpu-vsync',
-        '--disable-features=WebGLImageChromium',
-        '--disable-webgl-image-chromium',
-        '--disable-webgl-lose-context-on-memory-pressure',
-        '--disable-webgl-lose-context-on-gpu-reset',
         '--gpu-no-context-lost',
         '--disable-gl-drawing-for-tests=false',
-        '--force-gpu-mem-available-mb=2048',
+        '--force-gpu-mem-available-mb=4096',
         '--enable-gpu-rasterization',
         '--enable-zero-copy',
         '--disable-software-rasterizer',
-        '--max-active-webgl-contexts=1000'
+        '--max-active-webgl-contexts=16',
+        '--enable-webgl2-compute-context',
+        '--canvas-oop-rasterization',
+        '--enable-gpu-async-worker-context',
+        '--use-gl=desktop'
       ]
     }
   });
@@ -289,7 +298,7 @@ const createWindow = () => {
   };
 
   anubisView.webContents.addListener('render-process-gone', (event, details) => {
-    console.log('Render process gone:', details.reason);
+    console.error('Render process gone:', details.reason);
     handleCrash();
   });
 
@@ -438,10 +447,14 @@ const createWindow = () => {
     app.exit(0);
   });
 
-  mainWindow.webContents.addListener('render-process-gone', (event, details) => {
-    if (details.reason === 'crashed' || details.reason === 'oom') {
-      app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
-      mainWindow?.reload();
+  mainWindow.webContents.addListener('render-process-gone', async (event, details) => {
+    if (details.reason === 'crashed') {
+      console.error('Process crashed, attempting GPU recovery');
+      try {
+        await loadContent();
+      } catch (error) {
+        console.error('Failed to reload after crash:', error);
+      }
     }
   });
 
@@ -1030,6 +1043,98 @@ const createWindow = () => {
 
   ipcMain.handle('get-update-status', () => {
     return process.env.NODE_ENV === 'production' ? updateDownloaded : false;
+  });
+
+  anubisView.webContents.on('render-process-gone', async (event, details) => {
+    if (details.reason === 'crashed') {
+      console.error('Process crashed, attempting GPU recovery');
+      try {
+        await loadContent();
+      } catch (error) {
+        console.error('Failed to reload after crash:', error);
+      }
+    }
+  });
+
+  let webGLRestoreAttempts = 0;
+  const MAX_WEBGL_RESTORE_ATTEMPTS = 3;
+  let isRestoringWebGL = false;
+
+  const handleWebGLContextLost = async () => {
+    if (isRestoringWebGL) return;
+    isRestoringWebGL = true;
+    console.log('WebGL context lost, attempting to restore...');
+    
+    try {
+      await session.clearStorageData({
+        storages: ['shadercache'],
+        quotas: ['temporary']
+      });
+      
+      if (global.gc) global.gc();
+      
+      app.commandLine.appendSwitch('gpu-rasterization-reset');
+      
+      if (webGLRestoreAttempts < MAX_WEBGL_RESTORE_ATTEMPTS) {
+        webGLRestoreAttempts++;
+        console.log(`Attempting WebGL restore (${webGLRestoreAttempts}/${MAX_WEBGL_RESTORE_ATTEMPTS})`);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await loadContent();
+      } else {
+        console.log('Max WebGL restore attempts reached, switching to software rendering');
+        app.commandLine.appendSwitch('disable-gpu');
+        await loadContent();
+      }
+    } catch (error) {
+      console.error('Failed to restore WebGL context:', error);
+    } finally {
+      isRestoringWebGL = false;
+    }
+  };
+
+  anubisView.webContents.on('destroyed', async () => {
+    console.log('WebContents destroyed, attempting recovery...');
+    try {
+      app.commandLine.appendSwitch('gpu-rasterization-reset');
+      app.commandLine.appendSwitch('ignore-gpu-blocklist');
+      app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
+      
+      await handleWebGLContextLost();
+    } catch (error) {
+      console.error('Failed to recover from crash:', error);
+    }
+  });
+
+  anubisView.webContents.session.webRequest.onHeadersReceived(({ responseHeaders }, callback) => {
+    if (responseHeaders) {
+      delete responseHeaders['cross-origin-embedder-policy'];
+      delete responseHeaders['cross-origin-opener-policy'];
+    }
+    callback({ responseHeaders });
+  });
+
+  anubisView.webContents.on('did-finish-load', () => {
+    webGLRestoreAttempts = 0;
+    isRestoringWebGL = false;
+    crashRecoveryAttempts = 0;
+    isLoading = false;
+  });
+
+  const monitorGPUHealth = setInterval(() => {
+    if (!isRestoringWebGL && !isLoading) {
+      const memInfo = process.getSystemMemoryInfo();
+      if (memInfo.free < 1024 * 1024) {
+        console.log('Low memory detected, performing cleanup...');
+        handleWebGLContextLost();
+      }
+    }
+  }, 30000);
+
+  mainWindow.on('closed', () => {
+    clearInterval(monitorGPUHealth);
+    clearInterval(memoryManager);
+    mainWindow = null;
   });
 };
 
