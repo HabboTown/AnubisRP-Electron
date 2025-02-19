@@ -47,8 +47,7 @@
       "dist/**/*",
       "images/**/*",
       "src/**/*.html",
-      "package.json",
-      "dev-app-update.yml"
+      "package.json"
     ],
     "extraResources": [
       {

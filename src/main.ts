@@ -624,6 +624,7 @@ const createWindow = () => {
   });
 
   ipcMain.on('preview-settings', (_event, previewSettings) => {
+
     if (mainWindow) {
       mainWindow.setAutoHideMenuBar(!previewSettings.showTitleBar);
       
@@ -684,18 +685,9 @@ const createWindow = () => {
 
   ipcMain.on('update-settings', (_event, newSettings) => {
     const oldGameUrl = settings.gameUrl;
-    const oldFps = settings.fps;
     settings = { ...settings, ...newSettings };
     saveSettings();
     
-    if (settings.fps !== oldFps) {
-      if (anubisView) {
-        updateFPS(anubisView.webContents);
-      }
-      externalTabs.forEach((view) => {
-        updateFPS(view.webContents);
-      });
-    }
 
     if (mainWindow) {
       let titleBarColor = settings.titleBarColor;
@@ -723,11 +715,6 @@ const createWindow = () => {
     if (anubisView && settings.gameUrl !== oldGameUrl) anubisView.webContents.loadURL(settings.gameUrl);
   });
 
-  const updateFPS = (webContents: WebContents) => {
-    webContents.setFrameRate(settings.fps || 60);
-    webContents.setBackgroundThrottling(false);
-  };
-
   const createExternalTab = (url: string) => {
     const tabId = Date.now();
     const externalView = new BrowserView({
@@ -744,7 +731,6 @@ const createWindow = () => {
 
     mainWindow?.addBrowserView(externalView);
     updateViewBounds();
-    updateFPS(externalView.webContents);
 
     externalView.webContents.insertCSS(`
       ::-webkit-scrollbar {
@@ -924,61 +910,22 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
     autoUpdater.allowDowngrade = false;
-    autoUpdater.autoInstallOnAppQuit = true;
     const log = require('electron-log');
     autoUpdater.logger = log;
     log.transports.file.level = 'debug';
     
-    autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-      isCheckingForUpdates = false;
-      updateDownloaded = true;
-      
-      if (mainWindow) {
-        mainWindow.webContents.send('update-downloaded', info);
-        const dialogOpts = {
-          type: 'info',
-          buttons: ['Restart and Install', 'Later'],
-          title: 'Application Update',
-          message: 'A new version has been downloaded.',
-          detail: 'Would you like to restart and install the update now?'
-        };
-
-        require('electron').dialog.showMessageBox(mainWindow, dialogOpts).then((returnValue: { response: number }) => {
-          if (returnValue.response === 0) {
-            setImmediate(() => {
-              app.removeAllListeners('window-all-closed');
-              if (mainWindow !== null) {
-                mainWindow.close();
-              }
-              autoUpdater.quitAndInstall(false, true);
-            });
-          }
-        });
-      }
-    });
-
-    const createUpdateConfig = (filePath: string) => {
+    const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
+    if (!fs.existsSync(updateConfigPath)) {
       const updateConfig = `provider: github
-owner: Hxmada
-repo: AnubisRP-Electron
-updaterCacheDirName: anubisrp-updater`;
+                            owner: Hxmada
+                            repo: AnubisRP-Electron
+                            updaterCacheDirName: anubisrp-updater`;
       
       try {
-        fs.writeFileSync(filePath, updateConfig, 'utf8');
-        console.log(`Created update config at: ${filePath}`);
+        fs.writeFileSync(updateConfigPath, updateConfig, 'utf8');
       } catch (error) {
-        console.error(`Failed to create update config at ${filePath}:`, error);
+        console.error('Failed to create app-update.yml:', error);
       }
-    };
-
-    const prodConfigPath = path.join(process.resourcesPath, 'app-update.yml');
-    if (!fs.existsSync(prodConfigPath)) {
-      createUpdateConfig(prodConfigPath);
-    }
-
-    const devConfigPath = path.join(app.getAppPath(), 'dev-app-update.yml');
-    if (!fs.existsSync(devConfigPath)) {
-      createUpdateConfig(devConfigPath);
     }
 
     autoUpdater.setFeedURL({
@@ -1108,13 +1055,7 @@ updaterCacheDirName: anubisrp-updater`;
 
   ipcMain.on('install-update', () => {
     if (updateDownloaded) {
-      setImmediate(() => {
-        app.removeAllListeners('window-all-closed');
-        if (mainWindow !== null) {
-          mainWindow.close();
-        }
-        autoUpdater.quitAndInstall(false, true);
-      });
+      autoUpdater.quitAndInstall(false, true);
     }
   });
 
@@ -1192,7 +1133,6 @@ updaterCacheDirName: anubisrp-updater`;
     isRestoringWebGL = false;
     crashRecoveryAttempts = 0;
     isLoading = false;
-    updateFPS(anubisView.webContents);
   });
 
   const monitorGPUHealth = setInterval(() => {
