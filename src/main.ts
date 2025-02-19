@@ -648,15 +648,6 @@ const createWindow = () => {
       } else {
         nativeTheme.themeSource = 'system';
       }
-
-      if (previewSettings.fps !== settings.fps) {
-        if (anubisView) {
-          updateFPS(anubisView.webContents);
-        }
-        externalTabs.forEach((view) => {
-          updateFPS(view.webContents);
-        });
-      }
     }
   });
 
@@ -733,46 +724,8 @@ const createWindow = () => {
   });
 
   const updateFPS = (webContents: WebContents) => {
-    webContents.setFrameRate(240);
+    webContents.setFrameRate(settings.fps || 60);
     webContents.setBackgroundThrottling(false);
-
-    webContents.executeJavaScript(`
-      (function() {
-        const targetFPS = ${settings.fps || 60};
-        const frameTime = 1000 / targetFPS;
-        let lastFrameTime = 0;
-        
-        const originalRAF = window.requestAnimationFrame;
-        let rafId = null;
-
-        window.requestAnimationFrame = function(callback) {
-          const currentTime = performance.now();
-          const nextFrameTime = lastFrameTime + frameTime;
-          const timeUntilNextFrame = Math.max(0, nextFrameTime - currentTime);
-          
-          return setTimeout(() => {
-            lastFrameTime = performance.now();
-            callback(lastFrameTime);
-          }, timeUntilNextFrame);
-        };
-
-        const originalCAF = window.cancelAnimationFrame;
-        window.cancelAnimationFrame = function(id) {
-          clearTimeout(id);
-        };
-
-        if (typeof window.stop === 'function') {
-          window.stop();
-        }
-        
-        document.body?.style.setProperty('animation-duration', '0.001s');
-        setTimeout(() => {
-          document.body?.style.removeProperty('animation-duration');
-        }, 50);
-
-        console.log('[FPS Limiter] Set target FPS:', targetFPS);
-      })();
-    `);
   };
 
   const createExternalTab = (url: string) => {
@@ -971,22 +924,61 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
     autoUpdater.allowDowngrade = false;
+    autoUpdater.autoInstallOnAppQuit = true;
     const log = require('electron-log');
     autoUpdater.logger = log;
     log.transports.file.level = 'debug';
     
-    const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
-    if (!fs.existsSync(updateConfigPath)) {
+    autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
+      isCheckingForUpdates = false;
+      updateDownloaded = true;
+      
+      if (mainWindow) {
+        mainWindow.webContents.send('update-downloaded', info);
+        const dialogOpts = {
+          type: 'info',
+          buttons: ['Restart and Install', 'Later'],
+          title: 'Application Update',
+          message: 'A new version has been downloaded.',
+          detail: 'Would you like to restart and install the update now?'
+        };
+
+        require('electron').dialog.showMessageBox(mainWindow, dialogOpts).then((returnValue: { response: number }) => {
+          if (returnValue.response === 0) {
+            setImmediate(() => {
+              app.removeAllListeners('window-all-closed');
+              if (mainWindow !== null) {
+                mainWindow.close();
+              }
+              autoUpdater.quitAndInstall(false, true);
+            });
+          }
+        });
+      }
+    });
+
+    const createUpdateConfig = (filePath: string) => {
       const updateConfig = `provider: github
-                            owner: Hxmada
-                            repo: AnubisRP-Electron
-                            updaterCacheDirName: anubisrp-updater`;
+owner: Hxmada
+repo: AnubisRP-Electron
+updaterCacheDirName: anubisrp-updater`;
       
       try {
-        fs.writeFileSync(updateConfigPath, updateConfig, 'utf8');
+        fs.writeFileSync(filePath, updateConfig, 'utf8');
+        console.log(`Created update config at: ${filePath}`);
       } catch (error) {
-        console.error('Failed to create app-update.yml:', error);
+        console.error(`Failed to create update config at ${filePath}:`, error);
       }
+    };
+
+    const prodConfigPath = path.join(process.resourcesPath, 'app-update.yml');
+    if (!fs.existsSync(prodConfigPath)) {
+      createUpdateConfig(prodConfigPath);
+    }
+
+    const devConfigPath = path.join(app.getAppPath(), 'dev-app-update.yml');
+    if (!fs.existsSync(devConfigPath)) {
+      createUpdateConfig(devConfigPath);
     }
 
     autoUpdater.setFeedURL({
@@ -1116,7 +1108,13 @@ const createWindow = () => {
 
   ipcMain.on('install-update', () => {
     if (updateDownloaded) {
-      autoUpdater.quitAndInstall(false, true);
+      setImmediate(() => {
+        app.removeAllListeners('window-all-closed');
+        if (mainWindow !== null) {
+          mainWindow.close();
+        }
+        autoUpdater.quitAndInstall(false, true);
+      });
     }
   });
 
