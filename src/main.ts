@@ -624,7 +624,6 @@ const createWindow = () => {
   });
 
   ipcMain.on('preview-settings', (_event, previewSettings) => {
-
     if (mainWindow) {
       mainWindow.setAutoHideMenuBar(!previewSettings.showTitleBar);
       
@@ -648,6 +647,15 @@ const createWindow = () => {
         nativeTheme.themeSource = 'light';
       } else {
         nativeTheme.themeSource = 'system';
+      }
+
+      if (previewSettings.fps !== settings.fps) {
+        if (anubisView) {
+          updateFPS(anubisView.webContents);
+        }
+        externalTabs.forEach((view) => {
+          updateFPS(view.webContents);
+        });
       }
     }
   });
@@ -685,9 +693,18 @@ const createWindow = () => {
 
   ipcMain.on('update-settings', (_event, newSettings) => {
     const oldGameUrl = settings.gameUrl;
+    const oldFps = settings.fps;
     settings = { ...settings, ...newSettings };
     saveSettings();
     
+    if (settings.fps !== oldFps) {
+      if (anubisView) {
+        updateFPS(anubisView.webContents);
+      }
+      externalTabs.forEach((view) => {
+        updateFPS(view.webContents);
+      });
+    }
 
     if (mainWindow) {
       let titleBarColor = settings.titleBarColor;
@@ -715,6 +732,49 @@ const createWindow = () => {
     if (anubisView && settings.gameUrl !== oldGameUrl) anubisView.webContents.loadURL(settings.gameUrl);
   });
 
+  const updateFPS = (webContents: WebContents) => {
+    webContents.setFrameRate(240);
+    webContents.setBackgroundThrottling(false);
+
+    webContents.executeJavaScript(`
+      (function() {
+        const targetFPS = ${settings.fps || 60};
+        const frameTime = 1000 / targetFPS;
+        let lastFrameTime = 0;
+        
+        const originalRAF = window.requestAnimationFrame;
+        let rafId = null;
+
+        window.requestAnimationFrame = function(callback) {
+          const currentTime = performance.now();
+          const nextFrameTime = lastFrameTime + frameTime;
+          const timeUntilNextFrame = Math.max(0, nextFrameTime - currentTime);
+          
+          return setTimeout(() => {
+            lastFrameTime = performance.now();
+            callback(lastFrameTime);
+          }, timeUntilNextFrame);
+        };
+
+        const originalCAF = window.cancelAnimationFrame;
+        window.cancelAnimationFrame = function(id) {
+          clearTimeout(id);
+        };
+
+        if (typeof window.stop === 'function') {
+          window.stop();
+        }
+        
+        document.body?.style.setProperty('animation-duration', '0.001s');
+        setTimeout(() => {
+          document.body?.style.removeProperty('animation-duration');
+        }, 50);
+
+        console.log('[FPS Limiter] Set target FPS:', targetFPS);
+      })();
+    `);
+  };
+
   const createExternalTab = (url: string) => {
     const tabId = Date.now();
     const externalView = new BrowserView({
@@ -731,6 +791,7 @@ const createWindow = () => {
 
     mainWindow?.addBrowserView(externalView);
     updateViewBounds();
+    updateFPS(externalView.webContents);
 
     externalView.webContents.insertCSS(`
       ::-webkit-scrollbar {
@@ -1133,6 +1194,7 @@ const createWindow = () => {
     isRestoringWebGL = false;
     crashRecoveryAttempts = 0;
     isLoading = false;
+    updateFPS(anubisView.webContents);
   });
 
   const monitorGPUHealth = setInterval(() => {
