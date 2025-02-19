@@ -119,8 +119,6 @@ const createWindow = () => {
   app.commandLine.appendSwitch('enable-begin-frame-scheduling');
   app.commandLine.appendSwitch('enable-drdc');
   app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
-  app.commandLine.appendSwitch('enable-gpu-service-logging');
-  app.commandLine.appendSwitch('enable-webgl-image-chromium');
   app.commandLine.appendSwitch('enable-webgl2-compute-context');
   app.commandLine.appendSwitch('canvas-oop-rasterization');
   app.commandLine.appendSwitch('disable-gpu-process-for-dx12-vulkan-info-collection');
@@ -624,7 +622,6 @@ const createWindow = () => {
   });
 
   ipcMain.on('preview-settings', (_event, previewSettings) => {
-
     if (mainWindow) {
       mainWindow.setAutoHideMenuBar(!previewSettings.showTitleBar);
       
@@ -685,9 +682,18 @@ const createWindow = () => {
 
   ipcMain.on('update-settings', (_event, newSettings) => {
     const oldGameUrl = settings.gameUrl;
+    const oldFps = settings.fps;
     settings = { ...settings, ...newSettings };
     saveSettings();
     
+    if (settings.fps !== oldFps) {
+      if (anubisView) {
+        updateFPS(anubisView.webContents);
+      }
+      externalTabs.forEach((view) => {
+        updateFPS(view.webContents);
+      });
+    }
 
     if (mainWindow) {
       let titleBarColor = settings.titleBarColor;
@@ -715,6 +721,11 @@ const createWindow = () => {
     if (anubisView && settings.gameUrl !== oldGameUrl) anubisView.webContents.loadURL(settings.gameUrl);
   });
 
+  const updateFPS = (webContents: WebContents) => {
+    webContents.setFrameRate(settings.fps || 60);
+    webContents.setBackgroundThrottling(false);
+  };
+
   const createExternalTab = (url: string) => {
     const tabId = Date.now();
     const externalView = new BrowserView({
@@ -731,6 +742,7 @@ const createWindow = () => {
 
     mainWindow?.addBrowserView(externalView);
     updateViewBounds();
+    updateFPS(externalView.webContents);
 
     externalView.webContents.insertCSS(`
       ::-webkit-scrollbar {
@@ -910,9 +922,70 @@ const createWindow = () => {
   if (process.env.NODE_ENV === 'production') {
     autoUpdater.autoDownload = true;
     autoUpdater.allowDowngrade = false;
+    autoUpdater.autoInstallOnAppQuit = true;
     const log = require('electron-log');
     autoUpdater.logger = log;
     log.transports.file.level = 'debug';
+    
+    autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
+      isCheckingForUpdates = false;
+      updateDownloaded = true;
+      
+      if (mainWindow) {
+        mainWindow.webContents.send('update-downloaded', info);
+        const dialogOpts = {
+          type: 'info',
+          buttons: ['Restart and Install', 'Later'],
+          title: 'Application Update',
+          message: 'A new version has been downloaded.',
+          detail: 'Would you like to restart and install the update now?'
+        };
+
+        require('electron').dialog.showMessageBox(mainWindow, dialogOpts).then((returnValue: { response: number }) => {
+          if (returnValue.response === 0) {
+            setImmediate(() => {
+              app.removeAllListeners('window-all-closed');
+              if (mainWindow !== null) {
+                mainWindow.close();
+              }
+              autoUpdater.quitAndInstall(false, true);
+            });
+          }
+        });
+      }
+    });
+
+    const createUpdateConfig = (filePath: string) => {
+      const updateConfig = `provider: github
+owner: Hxmada
+repo: AnubisRP-Electron
+updaterCacheDirName: anubisrp-updater`;
+      
+      try {
+        fs.writeFileSync(filePath, updateConfig, 'utf8');
+        console.log(`Created update config at: ${filePath}`);
+      } catch (error) {
+        console.error(`Failed to create update config at ${filePath}:`, error);
+      }
+    };
+
+    const prodConfigPath = path.join(process.resourcesPath, 'app-update.yml');
+    if (!fs.existsSync(prodConfigPath)) {
+      createUpdateConfig(prodConfigPath);
+    }
+
+    const devConfigPath = path.join(app.getAppPath(), 'dev-app-update.yml');
+    if (!fs.existsSync(devConfigPath)) {
+      createUpdateConfig(devConfigPath);
+    }
+
+    autoUpdater.setFeedURL({
+      provider: 'github' as const,
+      owner: 'Hxmada',
+      repo: 'AnubisRP-Electron',
+      private: false,
+      releaseType: 'release'
+    });
   }
 
   const handleUpdateCheck = async (manual = false) => {
@@ -937,38 +1010,19 @@ const createWindow = () => {
       isCheckingForUpdates = true;
       isManualCheck = manual;
       mainWindow.webContents.send('checking-for-update');
-
-      const feedURL = {
-        provider: 'github' as const,
-        owner: 'Hxmada',
-        repo: 'AnubisRP-Electron',
-        token: process.env.GH_TOKEN,
-        private: false
-      };
-
-      console.log('Setting feed URL:', { ...feedURL, token: '***' });
       
-      try {
-        autoUpdater.setFeedURL(feedURL);
-        if (process.env.NODE_ENV !== 'production' && manual) {
-          console.log('Forcing update check in development mode');
-          autoUpdater.forceDevUpdateConfig = true;
-        }
-        await autoUpdater.checkForUpdates();
-      } catch (error: any) {
-        console.error('Update check failed:', error);
-        isCheckingForUpdates = false;
-        isManualCheck = false;
-        if (mainWindow) {
-          mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
-        }
+      if (process.env.NODE_ENV !== 'production' && manual) {
+        console.log('Forcing update check in development mode');
+        autoUpdater.forceDevUpdateConfig = true;
       }
+      
+      await autoUpdater.checkForUpdates();
     } catch (error: any) {
-      console.error('Update check error:', error);
+      console.error('Update check failed:', error);
       isCheckingForUpdates = false;
       isManualCheck = false;
       if (mainWindow) {
-        mainWindow.webContents.send('update-error', error.message || 'Unknown error occurred');
+        mainWindow.webContents.send('update-error', error.message || 'Failed to check for updates');
       }
     }
   };
@@ -1050,6 +1104,18 @@ const createWindow = () => {
     return process.env.NODE_ENV === 'production' ? updateDownloaded : false;
   });
 
+  ipcMain.on('install-update', () => {
+    if (updateDownloaded) {
+      setImmediate(() => {
+        app.removeAllListeners('window-all-closed');
+        if (mainWindow !== null) {
+          mainWindow.close();
+        }
+        autoUpdater.quitAndInstall(false, true);
+      });
+    }
+  });
+
   anubisView.webContents.on('render-process-gone', async (event, details) => {
     if (details.reason === 'crashed') {
       console.error('Process crashed, attempting GPU recovery');
@@ -1124,6 +1190,7 @@ const createWindow = () => {
     isRestoringWebGL = false;
     crashRecoveryAttempts = 0;
     isLoading = false;
+    updateFPS(anubisView.webContents);
   });
 
   const monitorGPUHealth = setInterval(() => {
