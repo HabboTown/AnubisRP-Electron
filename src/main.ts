@@ -412,6 +412,11 @@ const createWindow = () => {
     mainWindow.webContents.setZoomFactor(1);
     mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
     updateViewBounds();
+    
+    const currentView = activeExternalTab ? externalTabs.get(activeExternalTab) : anubisView;
+    if (currentView) {
+      currentView.webContents.focus();
+    }
   });
 
   nativeTheme.on('updated', () => {
