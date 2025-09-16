@@ -419,15 +419,18 @@
 
         .update-icon {
             transition: transform 0.3s ease;
+            color: var(--text-color);
+            flex-shrink: 0;
         }
 
         .check-updates-button.checking .update-icon {
             animation: spin 1s infinite linear;
         }
 
-        .check-updates-button.checking {
+        .check-updates-button[disabled] {
             pointer-events: none;
-            opacity: 0.8;
+            cursor: not-allowed;
+            opacity: 0.7;
         }
 
         @keyframes spin {
@@ -533,7 +536,7 @@
             <h2>Appearance</h2>
             <div class="setting-item">
                 <div class="setting-label">Theme</div>
-                <select id="theme" class="setting-input" onchange="previewChanges()">
+                <select id="theme" class="setting-input">
                     <option value="system">System</option>
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
@@ -542,7 +545,7 @@
             <div class="setting-item color-item">
                 <div class="setting-label">Title Bar Color</div>
                 <div class="color-controls">
-                    <input type="color" id="titleBarColor" class="setting-input" onchange="previewChanges()">
+                    <input type="color" id="titleBarColor" class="setting-input">
                     <button class="revert-button" onclick="revertColor()">Reset</button>
                 </div>
             </div>
@@ -551,7 +554,7 @@
         <div class="settings-section">
             <h2>Performance</h2>
             <div class="setting-item">
-                <select id="performanceMode" class="setting-input" onchange="previewChanges()">
+                <select id="performanceMode" class="setting-input">
                     <option value="optimal">Optimal Power</option>
                     <option value="maximum">Maximum Power</option>
                 </select>
@@ -566,7 +569,7 @@
             <div class="setting-item">
                 <div class="setting-label">Start in Fullscreen</div>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="startFullscreen" onchange="previewChanges()">
+                    <input type="checkbox" id="startFullscreen">
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -576,8 +579,29 @@
             <h2>Game URL</h2>
             <div class="setting-item">
                 <div class="setting-label">URL</div>
-                <input type="text" id="gameUrl" class="setting-input" onchange="previewChanges()" placeholder="https://anubisrp.com">
+                <input type="text" id="gameUrl" class="setting-input" placeholder="https://anubisrp.com">
             </div>
+        </div>
+
+        <div class="settings-section">
+            <h2>Updates</h2>
+            <div class="setting-item version-item">
+                <div class="setting-label">Current Version</div>
+                <div class="version-info">
+                    <span class="version-number" id="currentVersion">v2.6.0</span>
+                    <span class="version-status" id="updateStatus">Latest</span>
+                </div>
+            </div>
+            <button class="check-updates-button" id="checkUpdatesBtn" onclick="checkForUpdates()">
+                <div class="button-content">
+                    <svg class="update-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 1C8 0.447715 7.55228 0 7 0C6.44772 0 6 0.447715 6 1V2.5L4.5 1C4.10218 0.602177 3.39782 0.602177 3 1C2.60218 1.39782 2.60218 2.10218 3 2.5L6.29289 5.79289C6.68342 6.18342 7.31658 6.18342 7.70711 5.79289L11 2.5C11.3978 2.10218 11.3978 1.39782 11 1C10.6022 0.602177 9.89782 0.602177 9.5 1L8 2.5V1Z" fill="currentColor"/>
+                        <path d="M2 8C2 6.34315 3.34315 5 5 5H11C12.6569 5 14 6.34315 14 8V11C14 12.6569 12.6569 14 11 14H5C3.34315 14 2 12.6569 2 11V8Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                        <path d="M5.5 8.5L7 10L10.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    </svg>
+                    <span>Check for Updates</span>
+                </div>
+            </button>
         </div>
     </div>
     <button class="save-button" onclick="saveChanges()">No Changes</button>
@@ -681,12 +705,10 @@
                 updateAccentColor(e.target.value);
                 previewChanges();
             });
-            document.getElementById('fps').addEventListener('input', (e) => {
-                document.querySelector('.fps-value').textContent = `${e.target.value} FPS`;
-                previewChanges();
-            });
-            document.getElementById('gameUrl').addEventListener('input', previewChanges);
+            document.getElementById('titleBarColor').addEventListener('change', previewChanges);
+            document.getElementById('performanceMode').addEventListener('change', previewChanges);
             document.getElementById('startFullscreen').addEventListener('change', previewChanges);
+            document.getElementById('gameUrl').addEventListener('input', previewChanges);
         });
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
@@ -756,6 +778,104 @@
         document.querySelector('.window-control-button.close').addEventListener('click', () => {
             window.electronAPI.closeSettings();
         });
+        
+        const checkBtn = document.getElementById('checkUpdatesBtn');
+        const updateStatus = document.getElementById('updateStatus');
+        const buttonContent = checkBtn.querySelector('.button-content');
+        const currentVersionElement = document.getElementById('currentVersion');
+        let currentVersion;
+        
+        window.electronAPI.getVersion().then(version => {
+            currentVersion = `v${version}`;
+            currentVersionElement.textContent = currentVersion;
+        }).catch(error => {
+            console.error('Failed to get app version:', error);
+        });
+
+        const ICONS = {
+            check: `
+                <svg class="update-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16.0002 9L12.0002 5M12.0002 5L8.00016 9M12.0002 5V15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 7.58172 7.58172 4 12 4C13.8214 4 15.4942 4.60424 16.8351 5.66487" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>`,
+            checking: `
+                <svg class="update-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.0001 12C20.0001 16.4184 16.4185 20.0001 12.0001 20.0001C7.58182 20.0001 4.00009 16.4184 4.00009 12C4.00009 7.58173 7.58182 4 12.0001 4C14.5006 4 16.7353 5.05634 18.1214 6.64391" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>`,
+            download: `
+                <svg class="update-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 5V15M12 15L8 11M12 15L16 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 7.58172 7.58172 4 12 4C13.8214 4 15.4942 4.60424 16.8351 5.66487" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>`,
+            install: `
+                <svg class="update-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 5V15M12 15L8 11M12 15L16 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M19 20H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>`
+        };
+
+        function setUpdateState(state, data) {
+            checkBtn.classList.remove('checking');
+            checkBtn.disabled = false;
+            updateStatus.style.background = '';
+            updateStatus.style.color = '';
+
+            switch(state) {
+                case 'idle':
+                    buttonContent.innerHTML = ICONS.check + '<span>Check for Updates</span>';
+                    checkBtn.onclick = () => window.electronAPI.checkForUpdates();
+                    updateStatus.textContent = 'Latest';
+                    updateStatus.className = 'version-status latest';
+                    break;
+                case 'checking':
+                    buttonContent.innerHTML = ICONS.checking + '<span>Checking...</span>';
+                    checkBtn.classList.add('checking');
+                    checkBtn.disabled = true;
+                    updateStatus.textContent = 'Checking...';
+                    updateStatus.className = 'version-status checking';
+                    break;
+                case 'available':
+                    buttonContent.innerHTML = ICONS.download + `<span>Download v${data.version}</span>`;
+                    checkBtn.onclick = () => window.electronAPI.downloadUpdate();
+                    updateStatus.textContent = 'Update Available';
+                    updateStatus.className = 'version-status';
+                    updateStatus.style.background = '#ff9800';
+                    updateStatus.style.color = 'white';
+                    break;
+                case 'downloading':
+                    buttonContent.innerHTML = ICONS.download + `<span>Downloading... (${Math.round(data.percent)}%)</span>`;
+                    checkBtn.disabled = true;
+                    updateStatus.textContent = 'Downloading...';
+                    updateStatus.className = 'version-status';
+                    updateStatus.style.background = '#2196F3';
+                    updateStatus.style.color = 'white';
+                    break;
+                case 'downloaded':
+                    buttonContent.innerHTML = ICONS.install + '<span>Install & Restart</span>';
+                    checkBtn.onclick = () => window.electronAPI.installUpdate();
+                    updateStatus.textContent = 'Ready to Install';
+                    updateStatus.className = 'version-status';
+                    updateStatus.style.background = '#4CAF50';
+                    updateStatus.style.color = 'white';
+                    break;
+                case 'error':
+                    buttonContent.innerHTML = ICONS.check + '<span>Check for Updates</span>';
+                    checkBtn.onclick = () => window.electronAPI.checkForUpdates();
+                    updateStatus.textContent = 'Update Failed';
+                    updateStatus.className = 'version-status';
+                    updateStatus.style.background = '#f44336';
+                    updateStatus.style.color = 'white';
+                    break;
+            }
+        }
+
+        checkBtn.onclick = () => window.electronAPI.checkForUpdates();
+        window.electronAPI.onUpdateChecking(() => setUpdateState('checking'));
+        window.electronAPI.onUpdateAvailable((info) => setUpdateState('available', info));
+        window.electronAPI.onNoUpdateAvailable(() => setUpdateState('idle'));
+        window.electronAPI.onUpdateDownloadProgress((progress) => setUpdateState('downloading', progress));
+        window.electronAPI.onUpdateDownloaded(() => setUpdateState('downloaded'));
+        window.electronAPI.onUpdateError((error) => setUpdateState('error', error));
     </script>
 </body>
 </html> 

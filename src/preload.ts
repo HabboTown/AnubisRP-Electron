@@ -63,5 +63,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('zoom-changed', handler);
     return () => ipcRenderer.removeListener('zoom-changed', handler);
   },
-  toggleFullscreen: (isFullscreen: boolean) => ipcRenderer.send('toggle-fullscreen', isFullscreen)
+  toggleFullscreen: (isFullscreen: boolean) => ipcRenderer.send('toggle-fullscreen', isFullscreen),
+  checkForUpdates: () => ipcRenderer.send('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.send('download-update'),
+  installUpdate: () => ipcRenderer.send('install-update'),
+  onUpdateAvailable: (callback: (updateInfo: any) => void) => {
+    const handler = (_event: any, updateInfo: any) => callback(updateInfo);
+    ipcRenderer.on('update-available', handler);
+    return () => ipcRenderer.removeListener('update-available', handler);
+  },
+  onUpdateChecking: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('update-checking', handler);
+    return () => ipcRenderer.removeListener('update-checking', handler);
+  },
+  onUpdateDownloadProgress: (callback: (progress: any) => void) => {
+    const handler = (_event: any, progress: any) => callback(progress);
+    ipcRenderer.on('update-download-progress', handler);
+    return () => ipcRenderer.removeListener('update-download-progress', handler);
+  },
+  onUpdateDownloaded: (callback: (updateInfo: any) => void) => {
+    const handler = (_event: any, updateInfo: any) => callback(updateInfo);
+    ipcRenderer.on('update-downloaded', handler);
+    return () => ipcRenderer.removeListener('update-downloaded', handler);
+  },
+  onUpdateError: (callback: (error: any) => void) => {
+    const handler = (_event: any, error: any) => callback(error);
+    ipcRenderer.on('update-error', handler);
+    return () => ipcRenderer.removeListener('update-error', handler);
+  },
+  onNoUpdateAvailable: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('no-update-available', handler);
+    return () => ipcRenderer.removeListener('no-update-available', handler);
+  },
+  getVersion: () => ipcRenderer.invoke('get-version')
 }); 

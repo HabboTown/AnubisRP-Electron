@@ -1,5 +1,7 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, BrowserView, screen, shell } from 'electron';
 import { WebContents } from 'electron/main';
+import { autoUpdater } from 'electron-updater';
+import * as log from 'electron-log';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -101,6 +103,74 @@ const saveSettings = () => {
 
 loadSettings();
 applyPerformanceSettings(settings.performanceMode);
+
+autoUpdater.logger = log;
+log.transports.file.level = 'info';
+log.info('App starting...');
+autoUpdater.autoDownload = false;
+
+function sendUpdateEvent(channel: string, ...args: any[]) {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send(channel, ...args);
+  }
+}
+
+autoUpdater.on('checking-for-update', () => {
+  log.info('Checking for update...');
+  sendUpdateEvent('update-checking');
+});
+
+autoUpdater.on('update-available', (info) => {
+  log.info('Update available.', info);
+  sendUpdateEvent('update-available', info);
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  log.info('Update not available.', info);
+  sendUpdateEvent('no-update-available');
+});
+
+autoUpdater.on('error', (err) => {
+  log.error('Error in auto-updater.', err);
+  sendUpdateEvent('update-error', err.message);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  const logMessage = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+  log.info(logMessage);
+  sendUpdateEvent('update-download-progress', progressObj);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  log.info('Update downloaded.', info);
+  sendUpdateEvent('update-downloaded', info);
+});
+
+ipcMain.on('check-for-updates', () => {
+  log.info('Manual update check requested.');
+  autoUpdater.checkForUpdates().catch(err => {
+    log.error('Error during manual update check:', err);
+    sendUpdateEvent('update-error', err.message);
+  });
+});
+
+ipcMain.on('download-update', () => {
+  log.info('Download update requested.');
+  autoUpdater.downloadUpdate().catch(err => {
+    log.error('Error during update download:', err);
+    sendUpdateEvent('update-error', err.message);
+  });
+});
+
+ipcMain.on('install-update', () => {
+  log.info('Install and restart requested.');
+  autoUpdater.quitAndInstall();
+});
+
+ipcMain.handle('get-version', () => {
+  return app.getVersion();
+});
+
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -433,6 +503,13 @@ const createWindow = () => {
     }
     mainWindow?.show();
     mainWindow?.focus();
+
+    if (app.isPackaged) {
+      log.info('checking for updates on startup.');
+      autoUpdater.checkForUpdatesAndNotify();
+    } else {
+      log.info('skipping update check on startup.');
+    }
   });
 
   mainWindow.on('focus', () => {

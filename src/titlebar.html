@@ -335,6 +335,19 @@
             background: var(--accent-color);
         }
 
+        .control-button.refresh.animating .material-symbols-rounded {
+            animation: refresh-spin 1s linear infinite;
+        }
+
+        @keyframes refresh-spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         @font-face {
             font-family: 'gg sans';
             src: url('../fonts/ggsans-Normal.woff2') format('woff2');
@@ -406,6 +419,7 @@
 
     <script>
         const loadingBar = document.querySelector('.loading-bar');
+        const refreshButton = document.querySelector('.control-button.refresh');
         
         window.electronAPI.onLoadingProgress((progress) => {
             loadingBar.classList.add('loading');
@@ -415,6 +429,7 @@
                 loadingBar.classList.add('finishing');
                 setTimeout(() => {
                     loadingBar.classList.remove('loading', 'finishing');
+                    refreshButton.classList.remove('animating');
                 }, 200);
             }
         });
@@ -637,6 +652,10 @@
 
         document.querySelector('.control-button.settings').addEventListener('keydown', (e) => {
             e.preventDefault();
+        });
+
+        refreshButton.addEventListener('click', () => {
+            refreshButton.classList.add('animating');
         });
     </script>
 </body>
