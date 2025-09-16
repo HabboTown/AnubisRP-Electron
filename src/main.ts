@@ -38,31 +38,47 @@ let settings = {
     performanceMode: 'optimal'
 };
 
+const getRandomUserAgent = (): string => {
+  const platform = process.platform;
+  
+  if (platform === 'win32') {
+    return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+  } else if (platform === 'darwin') {
+    return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+  } else {
+    return 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+  }
+};
+
 const applyPerformanceSettings = (mode: string) => {
     app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
     app.commandLine.appendSwitch('enable-webgl');
+    app.commandLine.appendSwitch('enable-webgl2');
+    app.commandLine.appendSwitch('enable-gpu-rasterization');
+    app.commandLine.appendSwitch('ignore-gpu-blocklist');
+
+    app.commandLine.appendSwitch('disable-background-timer-throttling');
+    app.commandLine.appendSwitch('disable-renderer-backgrounding');
+    app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+
+    app.commandLine.appendSwitch('max-active-webgl-contexts', '16');
+    app.commandLine.appendSwitch('webgl-max-texture-size', '8192');
+
+    const totalMemory = process.getSystemMemoryInfo().total;
+    const totalMemoryMB = Math.floor(totalMemory / 1024);
     
+    let gpuMemory;
     if (mode === 'maximum') {
-        app.commandLine.appendSwitch('enable-gpu-rasterization');
-        app.commandLine.appendSwitch('enable-zero-copy');
-        if (process.platform === 'win32') {
-            app.commandLine.appendSwitch('use-angle', 'd3d11');
-        }
-        const totalMemory = process.getSystemMemoryInfo().total;
-        const gpuMemory = Math.min(Math.floor(totalMemory * 0.25), 4096);
-        app.commandLine.appendSwitch('force-gpu-mem-available-mb', gpuMemory.toString());
-    } else { // optimal
-        const isHighEndPC = process.getSystemMemoryInfo().total > 8 * 1024 * 1024;
-        if (isHighEndPC) {
-            app.commandLine.appendSwitch('enable-gpu-rasterization');
-            app.commandLine.appendSwitch('enable-zero-copy');
-            if (process.platform === 'win32') {
-                app.commandLine.appendSwitch('use-angle', 'd3d11');
-            }
-        }
-        app.commandLine.appendSwitch('force-gpu-mem-available-mb', '2048');
+        gpuMemory = Math.min(Math.floor(totalMemoryMB * 0.25), 4096);
+    } else {
+        gpuMemory = 2048;
     }
-    app.commandLine.appendSwitch('disable-gpu-process-crash-limit');
+    
+    app.commandLine.appendSwitch('force-gpu-mem-available-mb', gpuMemory.toString());
+    
+    if (process.platform === 'win32') {
+        app.commandLine.appendSwitch('use-angle', 'd3d11');
+    }
 };
 
 const loadSettings = () => {
@@ -117,37 +133,30 @@ const createWindow = () => {
       partition: 'persist:anubisView',
       backgroundThrottling: false,
       autoplayPolicy: 'no-user-gesture-required',
-      enablePreferredSizeMode: true,
       spellcheck: false,
       javascript: true,
       images: true,
       additionalArguments: [
-        '--ignore-gpu-blocklist',
-        '--disable-gpu-vsync',
-        '--enable-gpu-rasterization',
-        '--enable-zero-copy',
-        '--enable-webgl',
-        '--enable-accelerated-2d-canvas',
-        '--max-active-webgl-contexts=2'
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding'
       ]
     }
   });
 
   const session = anubisView.webContents.session;
 
-  const cachePath = path.join(app.getPath('userData'), 'Cache');
-  if (!fs.existsSync(cachePath)) {
-    try {
-      fs.mkdirSync(cachePath, { recursive: true });
-    } catch (error) {
-      console.error('Failed to create cache directory:', error);
+  try {
+    const userDataPath = app.getPath('userData');
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
     }
+  } catch (error) {
+    console.log('Cache setup info:', error);
   }
 
   session.setSpellCheckerEnabled(false);
   session.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowedPermissions = ['media', 'fullscreen'];
-    callback(allowedPermissions.includes(permission));
+    callback(true);
   });
   
   session.setSSLConfig({
@@ -156,11 +165,23 @@ const createWindow = () => {
   });
   
   session.setProxy({ mode: 'direct' });
+
+  session.webRequest.onBeforeSendHeaders((details, callback) => {
+    const headers = details.requestHeaders;
+    
+    if (headers['User-Agent'] && headers['User-Agent'].includes('Electron')) {
+      headers['User-Agent'] = getRandomUserAgent();
+    }
+    
+    callback({ requestHeaders: headers });
+  });
+
+  session.setPreloads([]);
+  session.setUserAgent(getRandomUserAgent());
   
   anubisView.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(settings.gameUrl)) {
-      showExternalLinkPrompt(url);
-      return { action: 'deny' };
+    if (url.startsWith('http') || url.startsWith('https')) {
+      return { action: 'allow' };
     }
     return { action: 'deny' };
   });
@@ -168,7 +189,7 @@ const createWindow = () => {
   anubisView.webContents.setAudioMuted(false);
   
   anubisView.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(settings.gameUrl)) {
+    if (!url.startsWith(settings.gameUrl) && !url.startsWith('http')) {
       event.preventDefault();
       showExternalLinkPrompt(url);
     }
@@ -178,14 +199,17 @@ const createWindow = () => {
   anubisView.webContents.setBackgroundThrottling(false);
 
   const optimizeMemory = () => {
-    if (anubisView && anubisView.webContents) {
-      if (!isLoading) {
-        anubisView.webContents.send('optimize-memory');
-      }
+    if (anubisView && anubisView.webContents && !isLoading) {
+      anubisView.webContents.executeJavaScript(`
+        if (window.performance && window.performance.memory && 
+            window.performance.memory.usedJSHeapSize > 1024 * 1024 * 1024) {
+          if (window.gc) window.gc();
+        }
+      `, true).catch(() => {});
     }
   };
 
-  setInterval(optimizeMemory, 60000);
+  setInterval(optimizeMemory, 600000);
   let isLoading = false;
   
   anubisView.webContents.on('did-start-loading', () => {
@@ -201,18 +225,15 @@ const createWindow = () => {
 
   const loadContent = async () => {
     try {
+      const userAgent = getRandomUserAgent();
+      session.setUserAgent(userAgent);
+
       await anubisView?.webContents.loadURL(settings.gameUrl, {
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36', //idk random
-        httpReferrer: settings.gameUrl
+        userAgent: userAgent
       });
     } catch (error: unknown) {
       console.error('Load failed:', error);
-      try {
-        await anubisView?.webContents.loadURL(settings.gameUrl);
-      } catch (retryError) {
-        console.error('Retry failed:', retryError);
-        setTimeout(loadContent, 2000);
-      }
+      handleCrash();
     }
   };
 
@@ -226,59 +247,33 @@ const createWindow = () => {
   });
 
   let crashRecoveryAttempts = 0;
-  const MAX_RECOVERY_ATTEMPTS = 3;
+  const MAX_RECOVERY_ATTEMPTS = 2;
 
   const handleCrash = async () => {
-    if (crashRecoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
-      if (mainWindow) {
-        const choice = await mainWindow.webContents.executeJavaScript(`confirm('The game has crashed repeatedly. Would you like to try clearing cache and reloading?')`);
-        
-        if (choice) {
-          crashRecoveryAttempts = 0;
-          const session = anubisView.webContents.session;
-          await session.clearCache();
-          await session.clearStorageData({
-            storages: ['serviceworkers', 'shadercache']
-          });
-          anubisView.webContents.reload();
-        }
-      }
-      return;
-    }
-
+    if (crashRecoveryAttempts >= MAX_RECOVERY_ATTEMPTS) return;
     crashRecoveryAttempts++;
-    console.log(`Attempting crash recovery (${crashRecoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})`);
-    
-    if (!isLoading) {
-      anubisView.webContents.reload();
-    }
+    setTimeout(() => {
+      if (!isLoading && anubisView && !anubisView.webContents.isDestroyed()) {
+        anubisView.webContents.reload();
+      }
+    }, 3000);
   };
 
   const optimizePerformance = () => {
     const memInfo = process.getSystemMemoryInfo();
-    const criticalMemoryThreshold = 512 * 1024; // 512MB
-    const warningMemoryThreshold = 1024 * 1024; // 1GB
+    const emergencyMemoryThreshold = 64 * 1024;
 
-    if (memInfo.free < criticalMemoryThreshold) {
-        console.log('Critical memory pressure, performing aggressive cleanup...');
-        if (global.gc) {
-            global.gc();
-        }
-        
-        if (anubisView && anubisView.webContents) {
-            anubisView.webContents.session.clearCache();
-        }
-        
+    if (memInfo.free < emergencyMemoryThreshold) {
+
         for (const [id, view] of externalTabs.entries()) {
             if (id !== activeExternalTab) {
-                view.webContents.close();
-                externalTabs.delete(id);
+                try {
+                  view.webContents.close();
+                  externalTabs.delete(id);
+                } catch (err) {
+                  // Do nothing
+                }
             }
-        }
-    } else if (memInfo.free < warningMemoryThreshold) {
-        console.log('Low memory detected, performing light cleanup...');
-        if (global.gc) {
-            global.gc();
         }
     }
   };
@@ -286,39 +281,44 @@ const createWindow = () => {
   const handleWebGLContextLoss = () => {
     app.on('child-process-gone', (event, details) => {
         if (details.type === 'GPU') {
-            console.warn('GPU process crashed, attempting to restore...');
-            if (!isLoading && anubisView?.webContents) {
-                anubisView.webContents.session.clearStorageData({
-                    storages: ['shadercache']
-                }).then(() => {
-                    anubisView.webContents.reload();
-                });
-            }
+            console.warn('GPU process crashed, will restart on next reload');
         }
     });
 
-    anubisView.webContents.on('render-process-gone', (event, details) => {
-        if (details.reason === 'crashed' || details.reason === 'launch-failed') {
-            console.warn('Render process gone due to GPU issues, attempting to restore...');
-            if (!isLoading) {
-                anubisView.webContents.session.clearStorageData({
-                    storages: ['shadercache']
-                }).then(() => {
-                    anubisView.webContents.reload();
-                });
-            }
+    anubisView.webContents.on('dom-ready', () => {
+      anubisView.webContents.executeJavaScript(`
+        if (typeof navigator.webdriver !== 'undefined') {
+          Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
         }
+
+        const originalGetContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+          if (type === 'webgl' || type === 'webgl2') {
+            const maxAttributes = {
+              ...attributes,
+              powerPreference: 'high-performance',
+              antialias: false,
+              alpha: false,
+              depth: true,
+              stencil: false,
+              preserveDrawingBuffer: false,
+              premultipliedAlpha: true,
+              failIfMajorPerformanceCaveat: false
+            };
+            return originalGetContext.call(this, type, maxAttributes);
+          }
+          return originalGetContext.call(this, type, attributes);
+        };
+      `, true).catch(() => {});
     });
   };
 
   const adjustSettingsForPerformance = () => {
     const isHighEndPC = process.getSystemMemoryInfo().total > 8 * 1024 * 1024;
     if (isHighEndPC) {
-      console.log('High-end PC detected, maximizing performance...');
       app.commandLine.appendSwitch('enable-gpu-rasterization');
       app.commandLine.appendSwitch('ignore-gpu-blocklist');
     } else {
-      console.log('Low-end PC detected, optimizing for stability...');
       app.commandLine.appendSwitch('disable-gpu-vsync');
       app.commandLine.appendSwitch('disable-background-timer-throttling');
     }
@@ -326,19 +326,17 @@ const createWindow = () => {
 
   adjustSettingsForPerformance();
   handleWebGLContextLoss();
-  setInterval(optimizePerformance, 15000);
+  setInterval(optimizePerformance, 600000);
 
   anubisView.webContents.on('render-process-gone', (event, details) => {
     console.error('Render process gone:', details.reason);
-    if (details.reason === 'crashed' || details.reason === 'oom' || details.reason === 'launch-failed') {
-      console.log('Attempting to recover from crash...');
+    if (details.reason === 'crashed' || details.reason === 'oom') {
       handleCrash();
     }
   });
 
-  anubisView.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.log('Failed to load:', errorDescription);
-    handleCrash();
+  anubisView.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (isMainFrame && errorCode < -100) handleCrash();
   });
 
   anubisView.webContents.addListener('did-finish-load', () => {
@@ -349,15 +347,17 @@ const createWindow = () => {
 
   const memoryManager = setInterval(() => {
     const memInfo = process.getSystemMemoryInfo();
-    if (memInfo.free < 512 * 1024) {
+    if (memInfo.free < 32 * 1024) {
       if (!isLoading) {
-        console.log('Critical memory pressure, performing minimal cleanup...');
         if (global.gc) {
           global.gc();
         }
+        anubisView?.webContents.session.clearStorageData({
+          storages: ['serviceworkers']
+        }).catch(() => {});
       }
     }
-  }, 30000);
+  }, 300000);
 
   mainWindow.on('minimize', () => {
     if (global.gc) {
@@ -539,13 +539,10 @@ const createWindow = () => {
     const session = anubisView.webContents.session;
     try {
       await session.clearCache();
-      
       await session.clearStorageData({
-        storages: ['serviceworkers', 'cachestorage', 'websql', 'indexdb', 'filesystem', 'localstorage', 'shadercache'],
+        storages: ['serviceworkers', 'cachestorage', 'shadercache'],
         quotas: ['temporary']
       });
-      
-      await session.clearCodeCaches({ urls: ['*://*/*'] });
       
       if (global.gc) {
         global.gc();
@@ -554,13 +551,7 @@ const createWindow = () => {
       anubisView.webContents.reload();
     } catch (error) {
       console.error('Error clearing cache:', error);
-
-      try {
-        await session.clearCache();
-        anubisView.webContents.reload();
-      } catch (retryError) {
-        console.error('Retry error clearing cache:', retryError);
-      }
+      anubisView.webContents.reload();
     }
   });
 
@@ -573,6 +564,7 @@ const createWindow = () => {
       anubisView.webContents.reload();
     } catch (error) {
       console.error('Error clearing cookies:', error);
+      anubisView.webContents.reload();
     }
   });
 
