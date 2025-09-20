@@ -30,6 +30,7 @@ let anubisView: BrowserView | null = null;
 let externalLinkWindow: BrowserWindow | null = null;
 let externalTabs: Map<number, BrowserView> = new Map();
 let activeExternalTab: number | null = null;
+let initialWindowBounds = { width: 1280, height: 720 };
 
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 let settings = {
@@ -215,8 +216,6 @@ const createWindow = () => {
       offscreen: false
     },
     frame: false,
-    titleBarStyle: 'hidden',
-    trafficLightPosition: process.platform === 'darwin' ? { x: 20, y: 10 } : { x: 10, y: 16 },
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
     show: false,
     icon: process.platform === 'darwin' ? path.join(__dirname, '../images/icon.icns'): process.platform === 'win32' ? path.join(__dirname, '../images/icon.ico') : path.join(__dirname, '../images/icon.png'),
@@ -648,10 +647,18 @@ const createWindow = () => {
   });
 
   ipcMain.on('maximize-window', () => {
-    if (mainWindow?.isMaximized()) {
-      mainWindow.unmaximize();
+    if (!mainWindow) return;
+    if (mainWindow.isMaximized()) {
+      if (process.platform === 'darwin') {
+        const display = screen.getDisplayMatching(mainWindow.getBounds());
+        const centerX = display.bounds.x + (display.bounds.width - initialWindowBounds.width) / 2;
+        const centerY = display.bounds.y + (display.bounds.height - initialWindowBounds.height) / 2;
+        mainWindow.setBounds({ x: centerX, y: centerY, width: initialWindowBounds.width, height: initialWindowBounds.height }, true);
+      } else {
+        mainWindow.unmaximize();
+      }
     } else {
-      mainWindow?.maximize();
+      mainWindow.maximize();
     }
   });
 
@@ -744,7 +751,6 @@ const createWindow = () => {
       parent: mainWindow!,
       modal: false,
       frame: false,
-      titleBarStyle: 'hidden',
       resizable: false,
       maximizable: false,
       minimizable: false,
