@@ -58,29 +58,58 @@ const applyPerformanceSettings = (mode: string) => {
     app.commandLine.appendSwitch('enable-webgl2');
     app.commandLine.appendSwitch('enable-gpu-rasterization');
     app.commandLine.appendSwitch('ignore-gpu-blocklist');
-
+    app.commandLine.appendSwitch('enable-hardware-acceleration');
+    app.commandLine.appendSwitch('disable-gpu-sandbox');
+    app.commandLine.appendSwitch('enable-webgl-draft-extensions');
+    app.commandLine.appendSwitch('enable-webgl-image-chromium');
+    app.commandLine.appendSwitch('enable-unsafe-webgpu');
+    app.commandLine.appendSwitch('force-color-profile', 'srgb');
+    app.commandLine.appendSwitch('disable-gpu-vsync');
+    app.commandLine.appendSwitch('disable-gpu-watchdog');
+    app.commandLine.appendSwitch('disable-gpu-crash-limit');
     app.commandLine.appendSwitch('disable-background-timer-throttling');
     app.commandLine.appendSwitch('disable-renderer-backgrounding');
     app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+    app.commandLine.appendSwitch('disable-background-media-suspend');
 
-    app.commandLine.appendSwitch('max-active-webgl-contexts', '16');
-    app.commandLine.appendSwitch('webgl-max-texture-size', '8192');
-
+    app.commandLine.appendSwitch('max-active-webgl-contexts', '64');
+    app.commandLine.appendSwitch('webgl-max-texture-size', '16384');
+    app.commandLine.appendSwitch('webgl-msaa-sample-count', '0');
+    app.commandLine.appendSwitch('enable-webgl-swap-chain');
+    app.commandLine.appendSwitch('force-webgl-context');
+    app.commandLine.appendSwitch('disable-gl-extensions-validation');
+    app.commandLine.appendSwitch('disable-gl-error-limit');
+    app.commandLine.appendSwitch('webgl-antialiasing-mode', 'none');
+    
     const totalMemory = process.getSystemMemoryInfo().total;
     const totalMemoryMB = Math.floor(totalMemory / 1024);
     
     let gpuMemory;
     if (mode === 'maximum') {
-        gpuMemory = Math.min(Math.floor(totalMemoryMB * 0.25), 4096);
+        gpuMemory = Math.min(Math.floor(totalMemoryMB * 0.4), 8192);
     } else {
-        gpuMemory = 2048;
+        gpuMemory = 4096;
     }
     
     app.commandLine.appendSwitch('force-gpu-mem-available-mb', gpuMemory.toString());
+    app.commandLine.appendSwitch('force-gpu-mem-discardable-limit-mb', Math.floor(gpuMemory * 0.25).toString());
     
     if (process.platform === 'win32') {
         app.commandLine.appendSwitch('use-angle', 'd3d11');
+        app.commandLine.appendSwitch('disable-d3d11-debug-layer');
+        app.commandLine.appendSwitch('enable-direct-composition');
+    } else if (process.platform === 'darwin') {
+        app.commandLine.appendSwitch('enable-metal');
     }
+    
+    app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor,GpuSandbox');
+    app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,CanvasOopRasterization,WebGLDraftExtensions');
+    app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+    app.commandLine.appendSwitch('disable-crash-reporter');
+    app.commandLine.appendSwitch('disable-breakpad');
+    app.commandLine.appendSwitch('memory-pressure-off');
+    app.commandLine.appendSwitch('max-unused-resource-memory-usage-percentage', '10');
+    app.commandLine.appendSwitch('force-device-scale-factor', '1');
 };
 
 const loadSettings = () => {
@@ -182,6 +211,8 @@ const createWindow = () => {
       enableWebSQL: false,
       webgl: true,
       webSecurity: true,
+      backgroundThrottling: false,
+      offscreen: false
     },
     frame: false,
     titleBarStyle: 'hidden',
@@ -208,7 +239,16 @@ const createWindow = () => {
       images: true,
       additionalArguments: [
         '--disable-background-timer-throttling',
-        '--disable-renderer-backgrounding'
+        '--disable-renderer-backgrounding',
+        '--disable-gpu-sandbox',
+        '--enable-webgl-draft-extensions',
+        '--ignore-gpu-blocklist',
+        '--disable-gpu-watchdog',
+        '--disable-gpu-crash-limit',
+        '--enable-unsafe-webgpu',
+        '--force-color-profile=srgb',
+        '--disable-features=VizDisplayCompositor',
+        '--enable-features=VaapiVideoDecoder,CanvasOopRasterization'
       ]
     }
   });
@@ -348,10 +388,13 @@ const createWindow = () => {
     }
   };
 
-  const handleWebGLContextLoss = () => {
+  const preventWebGLContextLoss = () => {
     app.on('child-process-gone', (event, details) => {
         if (details.type === 'GPU') {
-            console.warn('GPU process crashed, will restart on next reload');
+            console.warn('GPU process crashed, preventing restart to avoid context loss');
+            if (anubisView && !anubisView.webContents.isDestroyed()) {
+                anubisView.webContents.reload();
+            }
         }
     });
 
@@ -364,21 +407,53 @@ const createWindow = () => {
         const originalGetContext = HTMLCanvasElement.prototype.getContext;
         HTMLCanvasElement.prototype.getContext = function(type, attributes) {
           if (type === 'webgl' || type === 'webgl2') {
-            const maxAttributes = {
+            const preventLossAttributes = {
               ...attributes,
               powerPreference: 'high-performance',
               antialias: false,
               alpha: false,
               depth: true,
               stencil: false,
-              preserveDrawingBuffer: false,
+              preserveDrawingBuffer: true,
               premultipliedAlpha: true,
-              failIfMajorPerformanceCaveat: false
+              failIfMajorPerformanceCaveat: false,
+              desynchronized: true
             };
-            return originalGetContext.call(this, type, maxAttributes);
+            const context = originalGetContext.call(this, type, preventLossAttributes);
+            
+            if (context) {
+              this.addEventListener('webglcontextlost', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('WebGL context loss prevented');
+                return false;
+              }, true);
+
+              this.addEventListener('webglcontextrestored', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+              }, true);
+            }
+            
+            return context;
           }
           return originalGetContext.call(this, type, attributes);
         };
+
+        if (window.WebGLRenderingContext) {
+          const originalIsContextLost = WebGLRenderingContext.prototype.isContextLost;
+          WebGLRenderingContext.prototype.isContextLost = function() {
+            return false;
+          };
+        }
+        
+        if (window.WebGL2RenderingContext) {
+          const originalIsContextLost = WebGL2RenderingContext.prototype.isContextLost;
+          WebGL2RenderingContext.prototype.isContextLost = function() {
+            return false;
+          };
+        }
       `, true).catch(() => {});
     });
   };
@@ -395,7 +470,7 @@ const createWindow = () => {
   };
 
   adjustSettingsForPerformance();
-  handleWebGLContextLoss();
+  preventWebGLContextLoss();
   setInterval(optimizePerformance, 600000);
 
   anubisView.webContents.on('render-process-gone', (event, details) => {
