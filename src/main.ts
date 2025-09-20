@@ -347,7 +347,10 @@ const createWindow = () => {
   };
 
   mainWindow.setBrowserView(anubisView);
-  mainWindow.loadFile(path.join(__dirname, '../src/titlebar.html'));
+  const titlebarPath = app.isPackaged 
+    ? path.join(__dirname, 'titlebar.html')
+    : path.join(__dirname, '../src/titlebar.html');
+  mainWindow.loadFile(titlebarPath);
   mainWindow.webContents.on('did-finish-load', () => {
     const isDark = nativeTheme.shouldUseDarkColors;
     const initialColor = settings.titleBarColor || (isDark ? '#1a1a1a' : '#f8f8f8');
@@ -773,7 +776,10 @@ const createWindow = () => {
       );
     }
 
-    settingsWindow.loadFile(path.join(__dirname, '../src/settings.html'));
+    const settingsPath = app.isPackaged 
+      ? path.join(__dirname, 'settings.html')
+      : path.join(__dirname, '../src/settings.html');
+    settingsWindow.loadFile(settingsPath);
     
     settingsWindow.once('ready-to-show', () => {
       settingsWindow?.webContents.send('settings-load', settings);
@@ -1008,7 +1014,10 @@ const createWindow = () => {
       );
     }
 
-    externalLinkWindow.loadFile(path.join(__dirname, '../src/external-link-prompt.html'));
+    const externalLinkPath = app.isPackaged 
+      ? path.join(__dirname, 'external-link-prompt.html')
+      : path.join(__dirname, '../src/external-link-prompt.html');
+    externalLinkWindow.loadFile(externalLinkPath);
     
     externalLinkWindow.once('ready-to-show', () => {
       externalLinkWindow?.webContents.send('external-link-data', { url });

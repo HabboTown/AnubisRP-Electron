@@ -32,6 +32,7 @@
   "build": {
     "appId": "com.anubisrp.app",
     "productName": "AnubisRP",
+    "compression": "maximum",
     "publish": {
       "provider": "github",
       "owner": "HabboTown",
@@ -45,18 +46,9 @@
     },
     "files": [
       "dist/**/*",
-      "images/**/*",
-      "src/**/*.html",
+      "images/icon.*",
+      "images/Animatedprofile.gif",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "src",
-        "to": "src",
-        "filter": [
-          "**/*.html"
-        ]
-      }
     ],
     "win": {
       "target": [
@@ -77,8 +69,21 @@
       "deleteAppDataOnUninstall": true
     },
     "mac": {
-      "target": "dmg",
-      "icon": "images/icon.icns"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "images/icon.icns",
+      "category": "public.app-category.games",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "identity": null,
+      "type": "distribution",
+      "artifactName": "AnubisRP-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": "AppImage",
