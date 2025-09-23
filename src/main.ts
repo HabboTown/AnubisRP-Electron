@@ -54,62 +54,59 @@ const getRandomUserAgent = (): string => {
 };
 
 const applyPerformanceSettings = (mode: string) => {
-    app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
-    app.commandLine.appendSwitch('enable-webgl');
-    app.commandLine.appendSwitch('enable-webgl2');
-    app.commandLine.appendSwitch('enable-gpu-rasterization');
-    app.commandLine.appendSwitch('ignore-gpu-blocklist');
-    app.commandLine.appendSwitch('enable-hardware-acceleration');
-    app.commandLine.appendSwitch('disable-gpu-sandbox');
-    app.commandLine.appendSwitch('enable-webgl-draft-extensions');
-    app.commandLine.appendSwitch('enable-webgl-image-chromium');
-    app.commandLine.appendSwitch('enable-unsafe-webgpu');
-    app.commandLine.appendSwitch('force-color-profile', 'srgb');
-    app.commandLine.appendSwitch('disable-gpu-vsync');
-    app.commandLine.appendSwitch('disable-gpu-watchdog');
-    app.commandLine.appendSwitch('disable-gpu-crash-limit');
+    const totalMemory = process.getSystemMemoryInfo().total;
+    const totalMemoryMB = Math.floor(totalMemory / 1024);
+    const isLowEnd = totalMemoryMB < 8192;
+    const isMidRange = totalMemoryMB >= 8192 && totalMemoryMB < 16384;
+    const isHighEnd = totalMemoryMB >= 16384;
+    
     app.commandLine.appendSwitch('disable-background-timer-throttling');
     app.commandLine.appendSwitch('disable-renderer-backgrounding');
     app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
     app.commandLine.appendSwitch('disable-background-media-suspend');
-
-    app.commandLine.appendSwitch('max-active-webgl-contexts', '64');
-    app.commandLine.appendSwitch('webgl-max-texture-size', '16384');
-    app.commandLine.appendSwitch('webgl-msaa-sample-count', '0');
-    app.commandLine.appendSwitch('enable-webgl-swap-chain');
-    app.commandLine.appendSwitch('force-webgl-context');
-    app.commandLine.appendSwitch('disable-gl-extensions-validation');
-    app.commandLine.appendSwitch('disable-gl-error-limit');
-    app.commandLine.appendSwitch('webgl-antialiasing-mode', 'none');
+    app.commandLine.appendSwitch('disable-crash-reporter');
+    app.commandLine.appendSwitch('disable-breakpad');
     
-    const totalMemory = process.getSystemMemoryInfo().total;
-    const totalMemoryMB = Math.floor(totalMemory / 1024);
-    
-    let gpuMemory;
-    if (mode === 'maximum') {
-        gpuMemory = Math.min(Math.floor(totalMemoryMB * 0.4), 8192);
-    } else {
-        gpuMemory = 4096;
+    if (isLowEnd) {
+        app.commandLine.appendSwitch('disable-gpu-sandbox');
+        app.commandLine.appendSwitch('disable-software-rasterizer');
+        app.commandLine.appendSwitch('disable-gpu-vsync');
+        app.commandLine.appendSwitch('max-active-webgl-contexts', '8');
+        app.commandLine.appendSwitch('force-gpu-mem-available-mb', '1024');
+        app.commandLine.appendSwitch('max-unused-resource-memory-usage-percentage', '5');
+        app.commandLine.appendSwitch('memory-pressure-off');
+    } else if (isMidRange || mode === 'optimal') {
+        app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+        app.commandLine.appendSwitch('enable-webgl');
+        app.commandLine.appendSwitch('enable-gpu-rasterization');
+        app.commandLine.appendSwitch('enable-hardware-acceleration');
+        app.commandLine.appendSwitch('max-active-webgl-contexts', '32');
+        app.commandLine.appendSwitch('force-gpu-mem-available-mb', '3072');
+        app.commandLine.appendSwitch('max-unused-resource-memory-usage-percentage', '8');
+    } else if (isHighEnd || mode === 'maximum') {
+        app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+        app.commandLine.appendSwitch('enable-webgl');
+        app.commandLine.appendSwitch('enable-webgl2');
+        app.commandLine.appendSwitch('enable-gpu-rasterization');
+        app.commandLine.appendSwitch('ignore-gpu-blocklist');
+        app.commandLine.appendSwitch('enable-hardware-acceleration');
+        app.commandLine.appendSwitch('enable-webgl-draft-extensions');
+        app.commandLine.appendSwitch('enable-unsafe-webgpu');
+        app.commandLine.appendSwitch('max-active-webgl-contexts', '64');
+        app.commandLine.appendSwitch('webgl-max-texture-size', '16384');
+        app.commandLine.appendSwitch('force-gpu-mem-available-mb', Math.min(Math.floor(totalMemoryMB * 0.3), 6144).toString());
+        app.commandLine.appendSwitch('max-unused-resource-memory-usage-percentage', '10');
     }
-    
-    app.commandLine.appendSwitch('force-gpu-mem-available-mb', gpuMemory.toString());
-    app.commandLine.appendSwitch('force-gpu-mem-discardable-limit-mb', Math.floor(gpuMemory * 0.25).toString());
     
     if (process.platform === 'win32') {
         app.commandLine.appendSwitch('use-angle', 'd3d11');
         app.commandLine.appendSwitch('disable-d3d11-debug-layer');
-        app.commandLine.appendSwitch('enable-direct-composition');
     } else if (process.platform === 'darwin') {
         app.commandLine.appendSwitch('enable-metal');
     }
     
-    app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor,GpuSandbox');
-    app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,CanvasOopRasterization,WebGLDraftExtensions');
-    app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
-    app.commandLine.appendSwitch('disable-crash-reporter');
-    app.commandLine.appendSwitch('disable-breakpad');
-    app.commandLine.appendSwitch('memory-pressure-off');
-    app.commandLine.appendSwitch('max-unused-resource-memory-usage-percentage', '10');
+    app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
+    app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,CanvasOopRasterization');
     app.commandLine.appendSwitch('force-device-scale-factor', '1');
 };
 
@@ -211,11 +208,9 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
       enableWebSQL: false,
       webgl: true,
-      webSecurity: false,
+      webSecurity: true,
       backgroundThrottling: false,
-      offscreen: false,
-      allowRunningInsecureContent: true,
-      experimentalFeatures: true
+      offscreen: false
     },
     frame: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
@@ -231,30 +226,14 @@ const createWindow = () => {
       nodeIntegration: false,
       contextIsolation: true,
       webgl: true,
-      webSecurity: false,
+      webSecurity: true,
       partition: 'persist:anubisView',
       backgroundThrottling: false,
       autoplayPolicy: 'no-user-gesture-required',
       spellcheck: false,
       javascript: true,
       images: true,
-      allowRunningInsecureContent: true,
-      experimentalFeatures: true,
-      additionalArguments: [
-        '--disable-background-timer-throttling',
-        '--disable-renderer-backgrounding',
-        '--disable-gpu-sandbox',
-        '--enable-webgl-draft-extensions',
-        '--ignore-gpu-blocklist',
-        '--disable-gpu-watchdog',
-        '--disable-gpu-crash-limit',
-        '--enable-unsafe-webgpu',
-        '--force-color-profile=srgb',
-        '--disable-features=VizDisplayCompositor',
-        '--enable-features=VaapiVideoDecoder,CanvasOopRasterization',
-        '--disable-web-security',
-        '--disable-features=OutOfBlinkCors'
-      ]
+      allowRunningInsecureContent: false
     }
   });
 
@@ -276,10 +255,28 @@ const createWindow = () => {
   
   session.webRequest.onHeadersReceived((details, callback) => {
     const responseHeaders = { ...details.responseHeaders };
-    delete responseHeaders['X-Frame-Options'];
-    delete responseHeaders['Content-Security-Policy'];
-    delete responseHeaders['x-frame-options'];
-    delete responseHeaders['content-security-policy'];
+    if (responseHeaders['X-Frame-Options']) {
+      delete responseHeaders['X-Frame-Options'];
+    }
+    if (responseHeaders['x-frame-options']) {
+      delete responseHeaders['x-frame-options'];
+    }
+    if (responseHeaders['Content-Security-Policy']) {
+      const cspValue = responseHeaders['Content-Security-Policy'];
+      const csp = Array.isArray(cspValue) ? cspValue.join(' ') : String(cspValue);
+      if (csp.includes('frame-ancestors')) {
+        const modified = csp.replace(/frame-ancestors[^;]*;?\s*/g, '');
+        responseHeaders['Content-Security-Policy'] = [modified];
+      }
+    }
+    if (responseHeaders['content-security-policy']) {
+      const cspValue = responseHeaders['content-security-policy'];
+      const csp = Array.isArray(cspValue) ? cspValue.join(' ') : String(cspValue);
+      if (csp.includes('frame-ancestors')) {
+        const modified = csp.replace(/frame-ancestors[^;]*;?\s*/g, '');
+        responseHeaders['content-security-policy'] = [modified];
+      }
+    }
     callback({ responseHeaders });
   });
   
@@ -324,16 +321,31 @@ const createWindow = () => {
 
   const optimizeMemory = () => {
     if (anubisView && anubisView.webContents && !isLoading) {
+      const memInfo = process.getSystemMemoryInfo();
+      const totalMemoryMB = Math.floor(memInfo.total / 1024);
+      const isLowEnd = totalMemoryMB < 8192;
+      const threshold = isLowEnd ? 512 : 1024;
+      
       anubisView.webContents.executeJavaScript(`
         if (window.performance && window.performance.memory && 
-            window.performance.memory.usedJSHeapSize > 1024 * 1024 * 1024) {
+            window.performance.memory.usedJSHeapSize > ${threshold} * 1024 * 1024) {
           if (window.gc) window.gc();
+          const images = document.querySelectorAll('img');
+          images.forEach(img => {
+            if (!img.getBoundingClientRect().width) {
+              img.src = '';
+            }
+          });
         }
       `, true).catch(() => {});
     }
   };
 
-  setInterval(optimizeMemory, 600000);
+  const memInfo = process.getSystemMemoryInfo();
+  const totalMemoryMB = Math.floor(memInfo.total / 1024);
+  const isLowEnd = totalMemoryMB < 8192;
+  const optimizeInterval = isLowEnd ? 300000 : 600000;
+  setInterval(optimizeMemory, optimizeInterval);
   let isLoading = false;
   
   anubisView.webContents.on('did-start-loading', () => {
@@ -388,20 +400,23 @@ const createWindow = () => {
 
   const optimizePerformance = () => {
     const memInfo = process.getSystemMemoryInfo();
-    const emergencyMemoryThreshold = 64 * 1024;
+    const totalMemoryMB = Math.floor(memInfo.total / 1024);
+    const isLowEnd = totalMemoryMB < 8192;
+    const emergencyThreshold = isLowEnd ? 128 * 1024 : 64 * 1024;
+    const warningThreshold = isLowEnd ? 256 * 1024 : 128 * 1024;
 
-    if (memInfo.free < emergencyMemoryThreshold) {
-
+    if (memInfo.free < emergencyThreshold) {
         for (const [id, view] of externalTabs.entries()) {
             if (id !== activeExternalTab) {
                 try {
                   view.webContents.close();
                   externalTabs.delete(id);
-                } catch (err) {
-                  // Do nothing
-                }
+                } catch (err) {}
             }
         }
+        if (global.gc) global.gc();
+    } else if (memInfo.free < warningThreshold && isLowEnd) {
+        anubisView?.webContents.session.clearCache().catch(() => {});
     }
   };
 
@@ -476,13 +491,23 @@ const createWindow = () => {
   };
 
   const adjustSettingsForPerformance = () => {
-    const isHighEndPC = process.getSystemMemoryInfo().total > 8 * 1024 * 1024;
-    if (isHighEndPC) {
-      app.commandLine.appendSwitch('enable-gpu-rasterization');
-      app.commandLine.appendSwitch('ignore-gpu-blocklist');
-    } else {
+    const memInfo = process.getSystemMemoryInfo();
+    const totalMemoryMB = Math.floor(memInfo.total / 1024);
+    const isLowEnd = totalMemoryMB < 8192;
+    const isMidRange = totalMemoryMB >= 8192 && totalMemoryMB < 16384;
+    
+    if (isLowEnd) {
       app.commandLine.appendSwitch('disable-gpu-vsync');
       app.commandLine.appendSwitch('disable-background-timer-throttling');
+      app.commandLine.appendSwitch('memory-pressure-off');
+      anubisView?.webContents.setFrameRate(30);
+    } else if (isMidRange) {
+      app.commandLine.appendSwitch('enable-gpu-rasterization');
+      anubisView?.webContents.setFrameRate(60);
+    } else {
+      app.commandLine.appendSwitch('enable-gpu-rasterization');
+      app.commandLine.appendSwitch('ignore-gpu-blocklist');
+      anubisView?.webContents.setFrameRate(60);
     }
   };
 
@@ -509,13 +534,15 @@ const createWindow = () => {
 
   const memoryManager = setInterval(() => {
     const memInfo = process.getSystemMemoryInfo();
-    if (memInfo.free < 32 * 1024) {
+    const totalMemoryMB = Math.floor(memInfo.total / 1024);
+    const isLowEnd = totalMemoryMB < 8192;
+    const cleanupThreshold = isLowEnd ? 64 * 1024 : 32 * 1024;
+    
+    if (memInfo.free < cleanupThreshold) {
       if (!isLoading) {
-        if (global.gc) {
-          global.gc();
-        }
+        if (global.gc) global.gc();
         anubisView?.webContents.session.clearStorageData({
-          storages: ['serviceworkers']
+          storages: isLowEnd ? ['serviceworkers', 'cachestorage'] : ['serviceworkers']
         }).catch(() => {});
       }
     }
@@ -951,10 +978,8 @@ const createWindow = () => {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        webSecurity: false,
-        scrollBounce: true,
-        allowRunningInsecureContent: true,
-        experimentalFeatures: true
+        webSecurity: true,
+        scrollBounce: true
       }
     });
 
