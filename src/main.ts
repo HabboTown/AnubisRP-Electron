@@ -211,9 +211,11 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
       enableWebSQL: false,
       webgl: true,
-      webSecurity: true,
+      webSecurity: false,
       backgroundThrottling: false,
-      offscreen: false
+      offscreen: false,
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true
     },
     frame: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
@@ -229,13 +231,15 @@ const createWindow = () => {
       nodeIntegration: false,
       contextIsolation: true,
       webgl: true,
-      webSecurity: true,
+      webSecurity: false,
       partition: 'persist:anubisView',
       backgroundThrottling: false,
       autoplayPolicy: 'no-user-gesture-required',
       spellcheck: false,
       javascript: true,
       images: true,
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true,
       additionalArguments: [
         '--disable-background-timer-throttling',
         '--disable-renderer-backgrounding',
@@ -247,7 +251,9 @@ const createWindow = () => {
         '--enable-unsafe-webgpu',
         '--force-color-profile=srgb',
         '--disable-features=VizDisplayCompositor',
-        '--enable-features=VaapiVideoDecoder,CanvasOopRasterization'
+        '--enable-features=VaapiVideoDecoder,CanvasOopRasterization',
+        '--disable-web-security',
+        '--disable-features=OutOfBlinkCors'
       ]
     }
   });
@@ -266,6 +272,15 @@ const createWindow = () => {
   session.setSpellCheckerEnabled(false);
   session.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(true);
+  });
+  
+  session.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = { ...details.responseHeaders };
+    delete responseHeaders['X-Frame-Options'];
+    delete responseHeaders['Content-Security-Policy'];
+    delete responseHeaders['x-frame-options'];
+    delete responseHeaders['content-security-policy'];
+    callback({ responseHeaders });
   });
   
   session.setSSLConfig({
@@ -936,8 +951,10 @@ const createWindow = () => {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        webSecurity: true,
-        scrollBounce: true
+        webSecurity: false,
+        scrollBounce: true,
+        allowRunningInsecureContent: true,
+        experimentalFeatures: true
       }
     });
 
